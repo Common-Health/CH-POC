@@ -143,7 +143,7 @@ def create_account():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-@app.route("/login", methods=["POST"])
+@app.route("/api/login", methods=["POST"])
 def login():
     username = request.json.get("username", None)
     password = request.json.get("password", None)
