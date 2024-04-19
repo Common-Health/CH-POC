@@ -1,4 +1,5 @@
 from flask import Flask, request, redirect, jsonify
+from flask_jwt_extended import JWTManager, create_access_token,jwt_required
 from dotenv import load_dotenv
 from pay_api import encrypt_rsa, PrpCrypt
 from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user
@@ -9,6 +10,10 @@ import requests
 
 app = Flask(__name__)
 load_dotenv()
+
+app.config['JWT_SECRET_KEY'] = os.getenv('BEARER_SECRET_KEY')
+
+jwt = JWTManager(app)
 PROJECT_NAME = os.getenv('PROJECT_NAME')
 API_KEY = os.getenv('API_KEY')
 MERCHANT_NAME = os.getenv('MERCHANT_NAME')
@@ -98,6 +103,7 @@ def check_payment_status():
         return jsonify({"error": str(e)}), 500
     
 @app.route('/api/get_payment_method/<user_id>', methods=['POST'])
+@jwt_required()
 def get_payment_method(user_id):
     try:
         user_payment_method = find_payment_method_of_user(user_id)
@@ -106,6 +112,7 @@ def get_payment_method(user_id):
         return jsonify({"error": str(e)}), 500
     
 @app.route('/api/get_order/<user_id>/<stage>', methods=['POST'])
+@jwt_required()
 def get_order(user_id,stage):
     try:
         order_summary = find_user_order(user_id,stage)
@@ -114,6 +121,7 @@ def get_order(user_id,stage):
         return jsonify({"error": str(e)}), 500
     
 @app.route('/api/get_user/<user_id>', methods=['POST'])
+@jwt_required()
 def get_user(user_id):
     try:
         user_profile = find_user(user_id)
@@ -122,6 +130,7 @@ def get_user(user_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/create_account',methods=['POST'])
+@jwt_required()
 def create_account():
     try:
         received_data = request.json
@@ -133,5 +142,16 @@ def create_account():
         return new_user_response
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/login", methods=["POST"])
+def login():
+    username = request.json.get("username", None)
+    password = request.json.get("password", None)
+    if username != os.getenv('ADMIN_USERNAME') or password != os.getenv('ADMIN_PASSWORD'):
+        return jsonify({"msg": "Bad username or password"}), 401
+
+    access_token = create_access_token(identity=username)
+    return jsonify(access_token=access_token)
+
 if __name__ == '__main__':
     app.run(debug=True)
