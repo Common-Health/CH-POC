@@ -119,23 +119,29 @@ def update_user(fcm_token, user_id):
     return new_user_response
 
 def find_user_by_phone(phone):
-    query = f"SELECT Name FROM Account WHERE Phone = '{phone}'"
+    query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}'"
     response = sf.query(query)
 
     if response['totalSize'] > 0:
         account_details = response['records'][0]
-        user_details= account_details.get('Name')
+        user_details= {
+            "name": account_details.get('Name'),
+            "accountId":account_details.get('Id')
+        }
         return user_details
     else:
         raise ValueError ("No user found!")
 
 def validate_pin(phone, pin):
-    query = f"SELECT Name FROM Account WHERE Phone = '{phone}' AND PIN_Code__c = {pin}"
+    query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}' AND PIN_Code__c = {pin}"
     response = sf.query(query)
 
     if response['totalSize'] > 0:
         account_details = response['records'][0]
-        user_details= account_details.get('Name')
+        user_details= {
+            "name": account_details.get('Name'),
+            "accountId":account_details.get('Id')
+        }
         return user_details
     else:
         raise ValueError ("No user found!")

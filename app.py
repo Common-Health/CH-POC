@@ -165,17 +165,18 @@ def login(login_type):
                 return jsonify({"msg": "Bad username or password"}), 401
 
             access_token = create_access_token(identity=username)
+            return jsonify({"access_token":access_token})
         elif login_type == "phoneAuth":
             phone = request.json.get("phone", None)
             response = find_user_by_phone(phone)
-            access_token = create_access_token(identity=response)
+            access_token = create_access_token(identity=response["name"])
+            return jsonify({"access_token":access_token,"accountId":response['accountId']})
         elif login_type == "PIN":
             phone = request.json.get("phone", None)
             pin = request.json.get("PIN", None)
             response = validate_pin(phone, pin)
-            access_token = create_access_token(identity=response)
-
-        return jsonify(access_token=access_token)
+            access_token = create_access_token(identity=response["name"])
+            return jsonify({"access_token":access_token,"accountId":response['accountId']})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
