@@ -6,11 +6,12 @@ from helpers.salesforce_access import find_payment_method_of_user, find_user_ord
 import os
 import json
 import requests
+from flask_cors import CORS
 
 
 app = Flask(__name__)
 load_dotenv()
-
+CORS(app)
 app.config['JWT_SECRET_KEY'] = os.getenv('BEARER_SECRET_KEY')
 
 jwt = JWTManager(app)
@@ -180,5 +181,5 @@ def login(login_type):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000, debug=True)
