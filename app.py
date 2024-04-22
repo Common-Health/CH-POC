@@ -138,7 +138,8 @@ def create_account():
         user_phone = received_data['phone']
         fcm_token = received_data['fcmToken']
         user_country = received_data['country']
-        new_user_response = create_new_user(user_name, user_phone, fcm_token,user_country)
+        user_pin = received_data['PIN']
+        new_user_response = create_new_user(user_name, user_phone, fcm_token,user_country,user_pin)
         return new_user_response
     except Exception as e:
         return jsonify({"error": str(e)}), 500

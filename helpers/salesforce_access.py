@@ -86,14 +86,15 @@ def find_user_order(user_id, stage):
     else:
         return None
     
-def create_new_user(user_name, user_phone, fcm_token, user_country):
+def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin):
     new_account = {
         'Name': user_name,
         'Phone': user_phone,
         'RecordTypeId': '0124x000000ZGecAAG',
         'CurrencyIsoCode': 'MMK',
         'Country__c':user_country,
-        'FCM_Token__c': fcm_token
+        'FCM_Token__c': fcm_token,
+        'PIN_Code__c': user_pin
     }
 
     response = sf.Account.create(new_account)
