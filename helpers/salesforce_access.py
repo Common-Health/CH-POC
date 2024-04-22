@@ -104,7 +104,40 @@ def create_new_user(user_name, user_phone, fcm_token, user_country):
     }
     return new_user_response
 
+def update_user(fcm_token, user_id):
+    new_account_details = {
+        'FCM_Token__c': fcm_token
+    }
 
+    response = sf.Account.update(user_id, new_account_details)
+    new_user_response = {
+        'response': 'Account updated successfully!',
+        'fcmToken':fcm_token,
+        'userId':user_id
+    }
+    return new_user_response
+
+def find_user_by_phone(phone):
+    query = f"SELECT Name FROM Account WHERE Phone = '{phone}'"
+    response = sf.query(query)
+
+    if response['totalSize'] > 0:
+        account_details = response['records'][0]
+        user_details= account_details.get('Name')
+        return user_details
+    else:
+        raise ValueError ("No user found!")
+
+def validate_pin(phone, pin):
+    query = f"SELECT Name FROM Account WHERE Phone = '{phone}' AND PIN_Code__c = {pin}"
+    response = sf.query(query)
+
+    if response['totalSize'] > 0:
+        account_details = response['records'][0]
+        user_details= account_details.get('Name')
+        return user_details
+    else:
+        raise ValueError ("No user found!")
 
 # # account_id_to_find = 'A-41225'
 # account_id_to_find = '001VE000008xC0dYAE'

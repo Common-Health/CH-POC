@@ -2,7 +2,7 @@ from flask import Flask, request, redirect, jsonify
 from flask_jwt_extended import JWTManager, create_access_token,jwt_required
 from dotenv import load_dotenv
 from pay_api import encrypt_rsa, PrpCrypt
-from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user
+from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user, find_user_by_phone, validate_pin
 import os
 import json
 import requests
@@ -143,15 +143,40 @@ def create_account():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-@app.route("/api/login", methods=["POST"])
-def login():
-    username = request.json.get("username", None)
-    password = request.json.get("password", None)
-    if username != os.getenv('ADMIN_USERNAME') or password != os.getenv('ADMIN_PASSWORD'):
-        return jsonify({"msg": "Bad username or password"}), 401
+@app.route('/api/update_account/<user_id>/fcmToken',methods=['POST'])
+@jwt_required()
+def update_account(user_id):
+    try:
+        received_data = request.json
+        fcm_token = received_data['fcmToken']
+        update_fcm_response = update_user(fcm_token, user_id)
+        return update_fcm_response
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/api/login/<login_type>", methods=["POST"])
+def login(login_type):
+    try:
+        if login_type == "basic":
+            username = request.json.get("username", None)
+            password = request.json.get("password", None)
+            if username != os.getenv('ADMIN_USERNAME') or password != os.getenv('ADMIN_PASSWORD'):
+                return jsonify({"msg": "Bad username or password"}), 401
 
-    access_token = create_access_token(identity=username)
-    return jsonify(access_token=access_token)
+            access_token = create_access_token(identity=username)
+        elif login_type == "phoneAuth":
+            phone = request.json.get("phone", None)
+            response = find_user_by_phone(phone)
+            access_token = create_access_token(identity=response)
+        elif login_type == "PIN":
+            phone = request.json.get("phone", None)
+            pin = request.json.get("PIN", None)
+            response = validate_pin(phone, pin)
+            access_token = create_access_token(identity=response)
+
+        return jsonify(access_token=access_token)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
