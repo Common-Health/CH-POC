@@ -46,45 +46,60 @@ def find_user(user_id):
         return None
 
 def find_user_order(user_id, stage):
-    query = f"SELECT ID, Amount,Created_Date__c,Shopify_Order_Number__c,Name, StageName FROM Opportunity WHERE AccountId = '{user_id}' AND StageName = '{stage}'"
+    # Modify the query to conditionally include the StageName filter
+    if stage.lower() == "all":
+        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__c, Prescription__c, Opportunity_Number__c, Patient_Name__c FROM Opportunity WHERE AccountId = '{user_id}'"
+    else:
+        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__c, Prescription__c, Opportunity_Number__c, Patient_Name__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName = '{stage}'"
+
     response = sf.query(query)
 
     if response['totalSize'] > 0:
-        opportunity_details = response['records'][0]
-        opportunity_id = opportunity_details.get('Id')
-        opportunity_amount = opportunity_details.get('Amount')
-        opportunity_shopify_order_no = opportunity_details.get('Shopify_Order_Number__c')
-        opportunity_created_date = opportunity_details.get('Created_Date__c')
-        opportunity_name = opportunity_details.get('Name')
-        opportunity_stage = opportunity_details.get('StageName')
-        opp_item_query = f"SELECT Product__c, Price__c, Quantity__c, Shopify_Order_Number__c, 	Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}' "
-        opp_item = sf.query(opp_item_query)
-        if opp_item['totalSize'] > 0:
-            opp_item_details=opp_item['records'][0]
-            opp_item_products= opp_item_details.get('Product__c')
-            opp_item_price= opp_item_details.get('Price__c')
-            opp_item_quantity= opp_item_details.get('Quantity__c')
-            opp_item_shopify_order_no= opp_item_details.get('Shopify_Order_Number__c')
-            opp_item_date= opp_item_details.get('Date__c')
-            order_summary={
-                "opportunityName":opportunity_name,
-                "shopifyOrderNumber":opportunity_shopify_order_no,
-                "amount":opportunity_amount,
-                "createdDate":opportunity_created_date,
-                "currentStage":opportunity_stage,
-                "opportunityItem":{
-                    "products":opp_item_products,
-                    "price":opp_item_price,
-                    "quantity":opp_item_quantity,
-                    "shopifyOrderNumber":opp_item_shopify_order_no,
-                    "date":opp_item_date
-                }
+        order_summaries = []
+        for opportunity_details in response['records']:
+            opportunity_id = opportunity_details.get('Id')
+            opportunity_number = opportunity_details.get('Opportunity_Number__c')
+            opportunity_patient_name = opportunity_details.get('Patient_Name__c')
+            opportunity_prescription = opportunity_details.get('Prescription__c')
+            opportunity_payment_method = opportunity_details.get('Payment_Method__c')
+            opportunity_amount = opportunity_details.get('Amount')
+            opportunity_shopify_order_no = opportunity_details.get('Shopify_Order_Number__c')
+            opportunity_close_date = opportunity_details.get('CloseDate')
+            opportunity_name = opportunity_details.get('Name')
+            opportunity_stage = opportunity_details.get('StageName')
+
+            opp_item_query = f"SELECT Product__c, Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
+            opp_item_response = sf.query(opp_item_query)
+
+            opportunity_items = []
+            if opp_item_response['totalSize'] > 0:
+                for item in opp_item_response['records']:
+                    opp_item = {
+                        "products": item.get('Product__c'),
+                        "price": item.get('Price__c'),
+                        "quantity": item.get('Quantity__c'),
+                        "shopifyOrderNumber": item.get('Shopify_Order_Number__c'),
+                        "date": item.get('Date__c')
+                    }
+                    opportunity_items.append(opp_item)
+
+            order_summary = {
+                "opportunityName": opportunity_name,
+                "opportunityNumber": opportunity_number,
+                "patientName": opportunity_patient_name,
+                "prescription": opportunity_prescription,
+                "paymentMethod": opportunity_payment_method,
+                "shopifyOrderNumber": opportunity_shopify_order_no,
+                "amount": opportunity_amount,
+                "closeDate": opportunity_close_date,
+                "currentStage": opportunity_stage,
+                "opportunityItems": opportunity_items  # List of all items
             }
-            return order_summary
-        else:
-            raise ValueError("No Opportunity Item associated with this Opportunity")
+            order_summaries.append(order_summary)
+
+        return order_summaries
     else:
-        return None
+        return {"msg": "No Opportunities found associated with the user"}
     
 def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin):
     new_account = {

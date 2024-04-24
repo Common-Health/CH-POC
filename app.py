@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, jsonify
-from flask_jwt_extended import JWTManager, create_access_token,jwt_required
+from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 from pay_api import encrypt_rsa, PrpCrypt
 from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user, find_user_by_phone, validate_pin
@@ -134,14 +134,18 @@ def get_user(user_id):
 @jwt_required()
 def create_account():
     try:
-        received_data = request.json
-        user_name = received_data['username']
-        user_phone = received_data['phone']
-        fcm_token = received_data['fcmToken']
-        user_country = received_data['country']
-        user_pin = received_data['PIN']
-        new_user_response = create_new_user(user_name, user_phone, fcm_token,user_country,user_pin)
-        return new_user_response
+        current_user = get_jwt_identity()
+        if current_user != "CommonHealth":
+            return jsonify({"msg": "Unauthorized user"}), 403
+        else:
+            received_data = request.json
+            user_name = received_data['username']
+            user_phone = received_data['phone']
+            fcm_token = received_data['fcmToken']
+            user_country = received_data['country']
+            user_pin = received_data['PIN']
+            new_user_response = create_new_user(user_name, user_phone, fcm_token,user_country,user_pin)
+            return new_user_response
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
