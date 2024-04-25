@@ -101,7 +101,7 @@ def find_user_order(user_id, stage):
     else:
         return {"msg": "No Opportunities found associated with the user"}
     
-def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin):
+def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, firebase_uid):
     new_account = {
         'Name': user_name,
         'Phone': user_phone,
@@ -109,14 +109,16 @@ def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin):
         'CurrencyIsoCode': 'MMK',
         'Country__c':user_country,
         'FCM_Token__c': fcm_token,
-        'PIN_Code__c': user_pin
+        'PIN_Code__c': user_pin,
+        'Firebase_UID__c':firebase_uid
     }
 
     response = sf.Account.create(new_account)
     new_user_response = {
         'name':user_name,
         'fcmToken':fcm_token,
-        'userId':response.get('id')
+        'userId':response.get('id'),
+        'firebaseUid':firebase_uid
     }
     return new_user_response
 
