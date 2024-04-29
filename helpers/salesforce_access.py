@@ -27,20 +27,35 @@ def find_payment_method_of_user(user_id):
         return None
     
 def find_user(user_id):
-    query = f"SELECT Name, Account_ID__c, Phone, Alternate_Phone__c, Total_Order_Amount__c,Orders_Placed__c, Country__c FROM Account WHERE ID = '{user_id}'"
+    query = f"SELECT Name, Account_ID__c, Phone, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts) FROM Account WHERE ID = '{user_id}'"
     response = sf.query(query)
 
     if response['totalSize'] > 0:
         account_details = response['records'][0]
-        user_details={
-            "name":account_details.get('Name'),
-            "accountIdCH":account_details.get('Account_ID__c'),
-            "phoneNumber":account_details.get('Phone'),
-            "altPhoneNumber":account_details.get('Alternate_Phone__c'),
-            "cumulativeOrders":account_details.get('Orders_Placed__c'),
-            "cumulativeAmount":account_details.get('Total_Order_Amount__c'),
-            "country":account_details.get('Country__c')
+        
+        user_details = {
+            "name": account_details.get('Name'),
+            "accountIdCH": account_details.get('Account_ID__c'),
+            "phoneNumber": account_details.get('Phone'),
+            "altPhoneNumber": account_details.get('Alternate_Phone__c'),
+            "cumulativeOrders": account_details.get('Orders_Placed__c'),
+            "cumulativeAmount": account_details.get('Total_Order_Amount__c'),
+            "country": account_details.get('Country__c'),
+            "contacts": []
         }
+        contacts_data = account_details.get('Contacts', {}).get('records', [])
+        for contact in contacts_data:
+            contact_details = {
+                "contactId": contact.get('Id'),
+                "accountId": contact.get('AccountId'),
+                "contactName": contact.get('Name'),
+                "otherPhone": contact.get('OtherPhone'),
+                "memberID": contact.get('Member_ID__c'),
+                "age": contact.get('Age__c'),
+                "relationship":contact.get('HOH_Relationship__c')
+            }
+            user_details["contacts"].append(contact_details)
+
         return user_details
     else:
         return None
@@ -101,6 +116,60 @@ def find_user_order(user_id, stage):
     else:
         return {"msg": "No Opportunities found associated with the user"}
     
+def find_user_prescription(user_id, prescription_id):
+    # Modify the query to conditionally include the StageName filter
+    if prescription_id == None:
+        query = f"SELECT ID, Account__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Account__c = '{user_id}'"
+    else:
+        query = f"SELECT ID, Account__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Account__c = '{user_id}' AND Prescription__c = '{prescription_id}'"
+
+    response = sf.query(query)
+
+    if response['totalSize'] > 0:
+        prescription_summaries = []
+        for prescription_details in response['records']:
+            prescription_id = prescription_details.get('Id')
+            prescription_account_holder = prescription_details.get('Account__c')
+            prescription_patient_name = prescription_details.get('Patient__c')
+            prescription_age = prescription_details.get('Age__c')
+            prescription_prescribing_practitioner = prescription_details.get('Prescribing_Practitioner__c')
+            prescription_prescribing_clinic = prescription_details.get('Prescribing_Clinic__c')
+            prescription_creation_date = prescription_details.get('Prescription_Created_Date__c')
+            prescription_name = prescription_details.get('Name')
+
+            line_items_query = f"SELECT ID, Brand_Name__c, Generic_Name__c, Tablet__c, Prescription__c, Frequency__c, Units_per_Day__c FROM Prescription_Line_Item__c WHERE Prescription__c = '{prescription_id}'"
+            line_items_response = sf.query(line_items_query)
+
+            line_items = []
+            if line_items_response['totalSize'] > 0:
+                for item in line_items_response['records']:
+                    opp_item = {
+                        "brandName": item.get('Brand_Name__c'),
+                        "genericName": item.get('Generic_Name__c'),
+                        "tablet": item.get('Tablet__c'),
+                        "frequency": item.get('Frequency__c'),
+                        "unitsPerDayInsulin": item.get('Units_per_Day__c')
+                    }
+                    line_items.append(opp_item)
+
+            prescription_summary = {
+                "prescriptionId": prescription_id,
+                "accountHolder": prescription_account_holder,
+                "patientName": prescription_patient_name,
+                "age": prescription_age,
+                "prescribingPractitioner": prescription_prescribing_practitioner,
+                "prescribingClinic": prescription_prescribing_clinic,
+                "creationDate": prescription_creation_date,
+                "prescriptionNumber": prescription_name,
+                "prescriptionLineItems": line_items  # List of all items
+            }
+            prescription_summaries.append(prescription_summary)
+
+        return prescription_summaries
+    else:
+        return {"msg": "No Prescriptions found associated with the user"}
+    
+
 def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, firebase_uid):
     new_account = {
         'Name': user_name,
@@ -150,23 +219,31 @@ def find_user_by_phone(phone):
         raise ValueError ("No user found!")
 
 def validate_pin(phone, pin):
-    query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}' AND PIN_Code__c = {pin}"
-    response = sf.query(query)
+    # Query to check if a user exists with the given phone number
+    user_query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}'"
+    user_response = sf.query(user_query)
 
-    if response['totalSize'] > 0:
-        account_details = response['records'][0]
-        user_details= {
+    if user_response['totalSize'] == 0:
+        raise ValueError("No user found!")
+
+    # Query to check if the user with the given phone number has the correct PIN
+    pin_query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}' AND PIN_Code__c = {pin}"
+    pin_response = sf.query(pin_query)
+
+    if pin_response['totalSize'] > 0:
+        account_details = pin_response['records'][0]
+        user_details = {
             "name": account_details.get('Name'),
-            "accountId":account_details.get('Id')
+            "accountId": account_details.get('Id')
         }
         return user_details
     else:
-        raise ValueError ("No user found!")
+        raise ValueError("Wrong PIN!")
 
 # # account_id_to_find = 'A-41225'
 # account_id_to_find = '001VE000008xC0dYAE'
 
-# query = f"SELECT Id, Name, Account_ID__c, RecordTypeId, CurrencyIsoCode,(SELECT Id, FirstName, LastName, Email, Phone,HOH_Relationship__c FROM Contacts) FROM Account WHERE ID = '{account_id_to_find}'"
+# query = f"SELECT Id, Name, Account_ID__c, RecordTypeId, CurrencyIsoCode,(SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c FROM Contacts) FROM Account WHERE ID = '{account_id_to_find}'"
 # # query = f"SELECT Provider_Name__c, Method_Name__c, Customer_Phone_Number__c, Customer_Name__c FROM Opportunity WHERE AccountId = '{account_id_to_find}'"
 # # query = f"SELECT ID, Amount, Shopify_Order_Number__c,Name FROM Opportunity WHERE AccountId = '{account_id_to_find}' AND StageName = 'Ordered'"
 # response = sf.query(query)
