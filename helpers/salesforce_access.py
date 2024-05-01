@@ -1,4 +1,4 @@
-from simple_salesforce import Salesforce
+from simple_salesforce import Salesforce, SalesforceResourceNotFound, SalesforceMalformedRequest
 from dotenv import load_dotenv
 import os
 
@@ -27,7 +27,7 @@ def find_payment_method_of_user(user_id):
         return None
     
 def find_user(user_id):
-    query = f"SELECT Name, Account_ID__c, Phone, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts) FROM Account WHERE ID = '{user_id}'"
+    query = f"SELECT Name, Account_ID__c, Phone, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts), (SELECT Name, Customer__c, Subscription_Start_Date__c, Subscription_End_Date__c, Delivery_Frequency__c FROM Subscriptions__r) FROM Account WHERE ID = '{user_id}'"
     response = sf.query(query)
 
     if response['totalSize'] > 0:
@@ -41,7 +41,8 @@ def find_user(user_id):
             "cumulativeOrders": account_details.get('Orders_Placed__c'),
             "cumulativeAmount": account_details.get('Total_Order_Amount__c'),
             "country": account_details.get('Country__c'),
-            "contacts": []
+            "contacts": [],
+            "subscriptions":[]
         }
         contacts_data = account_details.get('Contacts', {}).get('records', [])
         for contact in contacts_data:
@@ -56,6 +57,17 @@ def find_user(user_id):
             }
             user_details["contacts"].append(contact_details)
 
+        subscriptions_data = account_details.get('Subscriptions__r', {}).get('records', [])
+        for subscription in subscriptions_data:
+            subscription_details = {
+                "name": subscription.get('Name'),
+                "customerName": subscription.get('Customer__c'),
+                "startDate": subscription.get('Subscription_Start_Date__c'),
+                "endDate": subscription.get('Subscription_End_Date__c'),
+                "deliveryFrequency":subscription.get('Delivery_Frequency__c')
+            }
+            user_details["subscriptions"].append(subscription_details)
+
         return user_details
     else:
         return None
@@ -63,9 +75,9 @@ def find_user(user_id):
 def find_user_order(user_id, stage):
     # Modify the query to conditionally include the StageName filter
     if stage.lower() == "all":
-        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__c, Prescription__c, Opportunity_Number__c, Patient_Name__c FROM Opportunity WHERE AccountId = '{user_id}'"
+        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__c, Prescription__c, Opportunity_Number__c, Patient_Name__c, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
     else:
-        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__c, Prescription__c, Opportunity_Number__c, Patient_Name__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName = '{stage}'"
+        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__c, Prescription__c, Opportunity_Number__c, Patient_Name__c, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName = '{stage}'"
 
     response = sf.query(query)
 
@@ -82,6 +94,16 @@ def find_user_order(user_id, stage):
             opportunity_close_date = opportunity_details.get('CloseDate')
             opportunity_name = opportunity_details.get('Name')
             opportunity_stage = opportunity_details.get('StageName')
+            subscription_id = opportunity_details.get('Subscription__c')
+
+            subscription_query = f"SELECT Name, Customer__c FROM Subscription__c WHERE Subscription__c.Id = '{subscription_id}'"
+            subscriptions_data = sf.query(subscription_query)
+            if subscriptions_data['totalSize'] > 0:
+                for subscription in subscriptions_data['records']:
+                    subscription_details = {
+                        "name": subscription.get('Name'),
+                        "customerName": subscription.get('Customer__c')
+                    }
 
             opp_item_query = f"SELECT Product__c, Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
             opp_item_response = sf.query(opp_item_query)
@@ -108,7 +130,8 @@ def find_user_order(user_id, stage):
                 "amount": opportunity_amount,
                 "closeDate": opportunity_close_date,
                 "currentStage": opportunity_stage,
-                "opportunityItems": opportunity_items  # List of all items
+                "opportunityItems": opportunity_items,  # List of all items
+                "subscription":subscription_details
             }
             order_summaries.append(order_summary)
 
@@ -191,7 +214,7 @@ def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, fi
     }
     return new_user_response
 
-def update_user(fcm_token, user_id):
+def update_user_fcm(fcm_token, user_id):
     new_account_details = {
         'FCM_Token__c': fcm_token
     }
@@ -203,6 +226,21 @@ def update_user(fcm_token, user_id):
         'userId':user_id
     }
     return new_user_response
+
+def update_user(update_data, user_id):
+    try:
+        sf.Account.update(user_id, update_data)
+        new_user_response = {
+            'response': 'Account updated successfully!',
+            'userId': user_id
+        }
+        return new_user_response
+    except SalesforceResourceNotFound:
+        return {'error': 'User not found in Salesforce with ID: {}'.format(user_id)}
+    except SalesforceMalformedRequest as e:
+        return {'error': 'Invalid data provided; Salesforce could not process the request. Details: {}'.format(e)}
+    except Exception as e:
+        return {'error': 'An unexpected error occurred: {}'.format(e)}
 
 def find_user_by_phone(phone):
     query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}'"

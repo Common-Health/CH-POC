@@ -2,7 +2,7 @@ from flask import Flask, request, redirect, jsonify
 from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 from pay_api import encrypt_rsa, PrpCrypt
-from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user, find_user_by_phone, validate_pin, find_user_prescription
+from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user
 import os
 import json
 import requests
@@ -162,12 +162,36 @@ def create_account():
     
 @app.route('/api/update_account/<user_id>/fcmToken',methods=['POST'])
 @jwt_required()
-def update_account(user_id):
+def update_account_fcm(user_id):
     try:
         received_data = request.json
         fcm_token = received_data['fcmToken']
-        update_fcm_response = update_user(fcm_token, user_id)
+        update_fcm_response = update_user_fcm(fcm_token, user_id)
         return update_fcm_response
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/update_account/<user_id>',methods=['POST'])
+@jwt_required()
+def update_account(user_id):
+    try:
+        data = request.json
+
+        update_data = {}
+        update_data['Name'] = data.get('name')
+        update_data['CH_Email__c'] = data.get('email')
+        update_data['ShippingStreet'] = data.get('shippingStreet')
+        if 'geolocation' in data and data['geolocation']:
+            try:
+                lat, lng = data['geolocation'].split(',')
+                update_data['Geolocation__Latitude__s'] = float(lat)
+                update_data['Geolocation__Longitude__s'] = float(lng)
+            except ValueError:
+                return {'error': 'Invalid geolocation format. Please use "lat,lng".'}
+        update_data['Display_Photo_URL__c'] = data.get('photo_url')
+
+        update_user_response = update_user(update_data,user_id)
+        return update_user_response
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
