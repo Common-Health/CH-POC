@@ -1,6 +1,7 @@
 from simple_salesforce import Salesforce, SalesforceResourceNotFound, SalesforceMalformedRequest
 from dotenv import load_dotenv
 import os
+from flask import jsonify
 
 load_dotenv()
 username = os.getenv('SF_USERNAME')
@@ -95,16 +96,17 @@ def find_user_order(user_id, stage):
             opportunity_name = opportunity_details.get('Name')
             opportunity_stage = opportunity_details.get('StageName')
             subscription_id = opportunity_details.get('Subscription__c')
-
-            subscription_query = f"SELECT Name, Customer__c FROM Subscription__c WHERE Subscription__c.Id = '{subscription_id}'"
-            subscriptions_data = sf.query(subscription_query)
-            if subscriptions_data['totalSize'] > 0:
-                for subscription in subscriptions_data['records']:
-                    subscription_details = {
-                        "name": subscription.get('Name'),
-                        "customerName": subscription.get('Customer__c')
-                    }
-
+            subscription_details = []
+            if subscription_id:
+                subscription_query = f"SELECT Name, Customer__c FROM Subscription__c WHERE Subscription__c.Id = '{subscription_id}'"
+                subscriptions_data = sf.query(subscription_query)
+                if subscriptions_data['totalSize'] > 0:
+                    for subscription in subscriptions_data['records']:
+                        subscription_detail = {
+                            "name": subscription.get('Name'),
+                            "customerName": subscription.get('Customer__c')
+                        }
+                        subscription_details.append(subscription_detail)
             opp_item_query = f"SELECT Product__c, Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
             opp_item_response = sf.query(opp_item_query)
 
@@ -121,6 +123,7 @@ def find_user_order(user_id, stage):
                     opportunity_items.append(opp_item)
 
             order_summary = {
+                "opportunityId":opportunity_id,
                 "opportunityName": opportunity_name,
                 "opportunityNumber": opportunity_number,
                 "patientName": opportunity_patient_name,
@@ -236,11 +239,31 @@ def update_user(update_data, user_id):
         }
         return new_user_response
     except SalesforceResourceNotFound:
-        return {'error': 'User not found in Salesforce with ID: {}'.format(user_id)}
+        return jsonify({'error': 'User not found in Salesforce with ID: {}'.format(user_id)}), 404
     except SalesforceMalformedRequest as e:
-        return {'error': 'Invalid data provided; Salesforce could not process the request. Details: {}'.format(e)}
+        return jsonify({'error': 'Invalid data provided; Salesforce could not process the request. Details: {}'.format(e)}),400
     except Exception as e:
-        return {'error': 'An unexpected error occurred: {}'.format(e)}
+        return jsonify({'error': 'An unexpected error occurred: {}'.format(e)}),500
+
+def update_opportunity_sf(new_stage, opp_id):
+    try:
+        # Check if the Opportunity exists
+        sf.Opportunity.get(opp_id)
+
+        # Update the Opportunity stage
+        sf.Opportunity.update(opp_id, {
+            'StageName': new_stage
+        })
+        return {'response': 'Opportunity updated successfully!', 'opportunityId':opp_id}
+    except SalesforceResourceNotFound:
+        # Opportunity ID is not found
+        return jsonify({'error': 'Opportunity not found'}), 404
+    except SalesforceMalformedRequest as e:
+        # Handling cases such as invalid field values or fields that do not exist
+        return jsonify({'error': 'Malformed request: ' + str(e)}), 400
+    except Exception as e:
+        # Generic error handling for any other unexpected errors
+        return jsonify({'error': 'An error occurred: ' + str(e)}), 500
 
 def find_user_by_phone(phone):
     query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}'"
