@@ -58,16 +58,18 @@ def find_user(user_id):
             }
             user_details["contacts"].append(contact_details)
 
-        subscriptions_data = account_details.get('Subscriptions__r', {}).get('records', [])
-        for subscription in subscriptions_data:
-            subscription_details = {
-                "name": subscription.get('Name'),
-                "customerName": subscription.get('Customer__c'),
-                "startDate": subscription.get('Subscription_Start_Date__c'),
-                "endDate": subscription.get('Subscription_End_Date__c'),
-                "deliveryFrequency":subscription.get('Delivery_Frequency__c')
-            }
-            user_details["subscriptions"].append(subscription_details)
+        subscriptions_data = account_details.get('Subscriptions__r', {})
+        if subscriptions_data:
+            subscriptions_data = subscriptions_data.get('records', [])
+            for subscription in subscriptions_data:
+                subscription_details = {
+                    "name": subscription.get('Name'),
+                    "customerName": subscription.get('Customer__c'),
+                    "startDate": subscription.get('Subscription_Start_Date__c'),
+                    "endDate": subscription.get('Subscription_End_Date__c'),
+                    "deliveryFrequency":subscription.get('Delivery_Frequency__c')
+                }
+                user_details["subscriptions"].append(subscription_details)
 
         return user_details
     else:
