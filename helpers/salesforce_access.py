@@ -45,18 +45,20 @@ def find_user(user_id):
             "contacts": [],
             "subscriptions":[]
         }
-        contacts_data = account_details.get('Contacts', {}).get('records', [])
-        for contact in contacts_data:
-            contact_details = {
-                "contactId": contact.get('Id'),
-                "accountId": contact.get('AccountId'),
-                "contactName": contact.get('Name'),
-                "otherPhone": contact.get('OtherPhone'),
-                "memberID": contact.get('Member_ID__c'),
-                "age": contact.get('Age__c'),
-                "relationship":contact.get('HOH_Relationship__c')
-            }
-            user_details["contacts"].append(contact_details)
+        contacts_data = account_details.get('Contacts', {})
+        if contacts_data:
+            contacts_data = contacts_data.get('records', [])
+            for contact in contacts_data:
+                contact_details = {
+                    "contactId": contact.get('Id'),
+                    "accountId": contact.get('AccountId'),
+                    "contactName": contact.get('Name'),
+                    "otherPhone": contact.get('OtherPhone'),
+                    "memberID": contact.get('Member_ID__c'),
+                    "age": contact.get('Age__c'),
+                    "relationship":contact.get('HOH_Relationship__c')
+                }
+                user_details["contacts"].append(contact_details)
 
         subscriptions_data = account_details.get('Subscriptions__r', {})
         if subscriptions_data:
