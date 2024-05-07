@@ -91,7 +91,7 @@ def find_user_order(user_id, stage):
         for opportunity_details in response['records']:
             opportunity_id = opportunity_details.get('Id')
             opportunity_number = opportunity_details.get('Opportunity_Number__c')
-            opportunity_patient_name = opportunity_details.get('Patient_Name__r').get('Name')
+            opportunity_patient_name = opportunity_details.get('Patient_Name__r')
             payment_method = opportunity_details.get('Payment_Method__r', {})
             prescription = opportunity_details.get('Prescription__r', {})
             opportunity_amount = opportunity_details.get('Amount')
@@ -113,7 +113,9 @@ def find_user_order(user_id, stage):
                         subscription_details.append(subscription_detail)
             opp_item_query = f"SELECT Product__c, Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
             opp_item_response = sf.query(opp_item_query)
-
+            prescription_details = {}
+            payment_method_details = {}
+            
             opportunity_items = []
             if opp_item_response['totalSize'] > 0:
                 for item in opp_item_response['records']:
@@ -125,6 +127,9 @@ def find_user_order(user_id, stage):
                         "date": item.get('Date__c')
                     }
                     opportunity_items.append(opp_item)
+
+            if opportunity_patient_name:
+                opportunity_patient_name = opportunity_patient_name.get('Name')
 
             if payment_method:
                 payment_method_details = {
