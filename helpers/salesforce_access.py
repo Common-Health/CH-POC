@@ -80,9 +80,9 @@ def find_user(user_id):
 def find_user_order(user_id, stage):
     # Modify the query to conditionally include the StageName filter
     if stage.lower() == "all":
-        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__c, Prescription__c, Opportunity_Number__c, Patient_Name__c, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
+        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
     else:
-        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__c, Prescription__c, Opportunity_Number__c, Patient_Name__c, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName = '{stage}'"
+        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName = '{stage}'"
 
     response = sf.query(query)
 
@@ -91,9 +91,9 @@ def find_user_order(user_id, stage):
         for opportunity_details in response['records']:
             opportunity_id = opportunity_details.get('Id')
             opportunity_number = opportunity_details.get('Opportunity_Number__c')
-            opportunity_patient_name = opportunity_details.get('Patient_Name__c')
-            opportunity_prescription = opportunity_details.get('Prescription__c')
-            opportunity_payment_method = opportunity_details.get('Payment_Method__c')
+            opportunity_patient_name = opportunity_details.get('Patient_Name__r').get('Name')
+            payment_method = opportunity_details.get('Payment_Method__r', {})
+            prescription = opportunity_details.get('Prescription__r', {})
             opportunity_amount = opportunity_details.get('Amount')
             opportunity_shopify_order_no = opportunity_details.get('Shopify_Order_Number__c')
             opportunity_close_date = opportunity_details.get('CloseDate')
@@ -102,13 +102,13 @@ def find_user_order(user_id, stage):
             subscription_id = opportunity_details.get('Subscription__c')
             subscription_details = []
             if subscription_id:
-                subscription_query = f"SELECT Name, Customer__c FROM Subscription__c WHERE Subscription__c.Id = '{subscription_id}'"
+                subscription_query = f"SELECT Name, Customer__r.Name FROM Subscription__c WHERE Subscription__c.Id = '{subscription_id}'"
                 subscriptions_data = sf.query(subscription_query)
                 if subscriptions_data['totalSize'] > 0:
                     for subscription in subscriptions_data['records']:
                         subscription_detail = {
                             "name": subscription.get('Name'),
-                            "customerName": subscription.get('Customer__c')
+                            "customerName": subscription.get('Customer__r').get('Name')
                         }
                         subscription_details.append(subscription_detail)
             opp_item_query = f"SELECT Product__c, Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
@@ -126,13 +126,27 @@ def find_user_order(user_id, stage):
                     }
                     opportunity_items.append(opp_item)
 
+            if payment_method:
+                payment_method_details = {
+                "customerPhoneNumber": payment_method.get('Customer_Phone_Number__c'),
+                "currencyIsoCode": payment_method.get('CurrencyIsoCode'),
+                "customerName": payment_method.get('Customer_Name__c'),
+                "methodName": payment_method.get('Method_Name__c'),
+                "providerName": payment_method.get('Provider_Name__c'),
+                "name": payment_method.get('Name')
+                }
+            if prescription:
+                prescription_details = {
+                "name": prescription.get('Name', 'N/A'),
+                "prescriptionId": prescription.get('Id', 'N/A')
+                }
             order_summary = {
                 "opportunityId":opportunity_id,
                 "opportunityName": opportunity_name,
                 "opportunityNumber": opportunity_number,
                 "patientName": opportunity_patient_name,
-                "prescription": opportunity_prescription,
-                "paymentMethod": opportunity_payment_method,
+                "prescription": prescription_details,
+                "paymentMethod": payment_method_details,
                 "shopifyOrderNumber": opportunity_shopify_order_no,
                 "amount": opportunity_amount,
                 "closeDate": opportunity_close_date,
