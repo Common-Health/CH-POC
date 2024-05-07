@@ -81,8 +81,12 @@ def find_user_order(user_id, stage):
     # Modify the query to conditionally include the StageName filter
     if stage.lower() == "all":
         query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
+    elif stage.lower() == "pending":
+        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
+    elif stage.lower() == "past":
+        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
     else:
-        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName = '{stage}'"
+        raise ValueError("Invalid stage provided. Please use 'pending' or 'past'.")
 
     response = sf.query(query)
 
@@ -115,7 +119,7 @@ def find_user_order(user_id, stage):
             opp_item_response = sf.query(opp_item_query)
             prescription_details = {}
             payment_method_details = {}
-            
+
             opportunity_items = []
             if opp_item_response['totalSize'] > 0:
                 for item in opp_item_response['records']:
