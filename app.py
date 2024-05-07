@@ -2,7 +2,7 @@ from flask import Flask, request, redirect, jsonify
 from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 from pay_api import encrypt_rsa, PrpCrypt
-from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf
+from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data
 import os
 import json
 import requests
@@ -130,6 +130,12 @@ def get_prescription(user_id, prescription_id):
         return prescription_summary
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/get_contact_data/<contact_id>', methods=['POST'])
+@jwt_required()
+def contact_data(contact_id):
+    result = get_contact_related_data(contact_id)
+    return jsonify(result)
     
 @app.route('/api/get_user/<user_id>', methods=['POST'])
 @jwt_required()

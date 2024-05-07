@@ -213,6 +213,65 @@ def find_user_prescription(user_id, prescription_id):
     else:
         return {"msg": "No Prescriptions found associated with the user"}
     
+def get_contact_related_data(contact_id):
+    try:
+        # Querying only the Name, Id, and Phone of the contact
+        contact_data = sf.query(f"SELECT Id, Name, Phone, Age__c FROM Contact WHERE Id = '{contact_id}'")['records'][0]
+        contact_info = {
+            'id': contact_data['Id'],
+            'name': contact_data['Name'],
+            'phone': contact_data['Phone'],
+            'age':contact_data['Age__c']
+        }
+
+        # Querying prescriptions and their line items
+        prescription_query = sf.query_all(f"""
+            SELECT Id, Name, (SELECT Id, Name, Brand_Name__c, Generic_Name__c, Status__c, Frequency__c FROM Prescription_Line_Items__r)
+            FROM Prescription__c
+            WHERE Patient__c = '{contact_id}'
+        """)['records']
+
+        # Formatting prescriptions to include only specific fields
+        prescriptions = [
+            {
+                'prescriptionId': pres['Id'],
+                'prescriptionName': pres['Name'],
+                'prescriptionLineItems': [
+                    {
+                        'id': item['Id'],
+                        'name': item['Name'],
+                        'brandName': item['Brand_Name__c'],
+                        'genericName': item['Generic_Name__c'],
+                        'status': item['Status__c'],
+                        'frequency': item['Frequency__c']
+                    } for item in pres['Prescription_Line_Items__r']['records']
+                ] if 'Prescription_Line_Items__r' in pres else []
+            } for pres in prescription_query
+        ]
+
+        # Querying subscriptions
+        subscription_query = sf.query_all(f"""
+            SELECT Id, Name, Delivery_Frequency__c
+            FROM Subscription__c
+            WHERE Customer__c = '{contact_id}'
+        """)['records']
+
+        # Formatting subscriptions to include only specified fields
+        subscriptions = [
+            {
+                'subscriptionId': sub['Id'],
+                'subscriptionName': sub['Name'],
+                'deliveryFrequency': sub['Delivery_Frequency__c']
+            } for sub in subscription_query
+        ]
+
+        return {
+            "contact": contact_info,
+            "prescriptions": prescriptions,
+            "subscriptions": subscriptions
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, firebase_uid):
     new_account = {
