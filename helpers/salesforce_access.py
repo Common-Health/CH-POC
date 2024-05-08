@@ -285,18 +285,31 @@ def get_contact_related_data(contact_id):
         return {"error": str(e)}
 
 def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, firebase_uid):
+    
+    if user_country == "Philippines":
+        currency = 'USD'
+    elif user_country == "Myanmar":
+        currency = 'MMK'
+
     new_account = {
         'Name': user_name,
         'Phone': user_phone,
         'RecordTypeId': '0124x000000ZGecAAG',
-        'CurrencyIsoCode': 'MMK',
+        'CurrencyIsoCode': currency,
         'Country__c':user_country,
         'FCM_Token__c': fcm_token,
         'PIN_Code__c': user_pin,
         'Firebase_UID__c':firebase_uid
     }
-
     response = sf.Account.create(new_account)
+    new_contact = {
+        'LastName': user_name,
+        'AccountId': response.get('id'),
+        'RecordTypeId': '0124x000000ZGiKAAW',
+        'Phone': user_phone,
+        'CurrencyIsoCode': currency
+    }
+    response_contact = sf.Contact.create(new_contact)
     new_user_response = {
         'name':user_name,
         'fcmToken':fcm_token,
