@@ -80,11 +80,11 @@ def find_user(user_id):
 def find_user_order(user_id, stage):
     # Modify the query to conditionally include the StageName filter
     if stage.lower() == "all":
-        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
+        query = f"SELECT ID, Amount, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
     elif stage.lower() == "pending":
-        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
+        query = f"SELECT ID, Amount, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
     elif stage.lower() == "past":
-        query = f"SELECT ID, Amount, CloseDate, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
+        query = f"SELECT ID, Amount, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
     else:
         raise ValueError("Invalid stage provided. Please use 'pending' or 'past'.")
 
@@ -103,6 +103,7 @@ def find_user_order(user_id, stage):
             opportunity_close_date = opportunity_details.get('CloseDate')
             opportunity_name = opportunity_details.get('Name')
             opportunity_stage = opportunity_details.get('StageName')
+            opportunity_created_date = opportunity_details.get('Created_Date__c')
             subscription_id = opportunity_details.get('Subscription__c')
             subscription_details = []
             if subscription_id:
@@ -159,6 +160,7 @@ def find_user_order(user_id, stage):
                 "shopifyOrderNumber": opportunity_shopify_order_no,
                 "amount": opportunity_amount,
                 "closeDate": opportunity_close_date,
+                "createdDate": opportunity_created_date,
                 "currentStage": opportunity_stage,
                 "opportunityItems": opportunity_items,  # List of all items
                 "subscription":subscription_details
