@@ -80,11 +80,11 @@ def find_user(user_id):
 def find_user_order(user_id, stage):
     # Modify the query to conditionally include the StageName filter
     if stage.lower() == "all":
-        query = f"SELECT ID, Amount, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
+        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
     elif stage.lower() == "pending":
-        query = f"SELECT ID, Amount, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
+        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
     elif stage.lower() == "past":
-        query = f"SELECT ID, Amount, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
+        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
     else:
         raise ValueError("Invalid stage provided. Please use 'pending' or 'past'.")
 
@@ -104,6 +104,11 @@ def find_user_order(user_id, stage):
             opportunity_name = opportunity_details.get('Name')
             opportunity_stage = opportunity_details.get('StageName')
             opportunity_created_date = opportunity_details.get('Created_Date__c')
+            opportunity_delivery_date = opportunity_details.get('Delivery_SLA_Date__c')
+            if stage == 'Pending':
+                opportunity_rating = None
+            else:
+                opportunity_rating = opportunity_details.get('Net_Promoter_Score__c')
             subscription_id = opportunity_details.get('Subscription__c')
             subscription_details = []
             if subscription_id:
@@ -158,6 +163,8 @@ def find_user_order(user_id, stage):
                 "prescription": prescription_details,
                 "paymentMethod": payment_method_details,
                 "shopifyOrderNumber": opportunity_shopify_order_no,
+                "deliveryDate": opportunity_delivery_date,
+                "deliveryRating": opportunity_rating,
                 "amount": opportunity_amount,
                 "closeDate": opportunity_close_date,
                 "createdDate": opportunity_created_date,
@@ -174,9 +181,9 @@ def find_user_order(user_id, stage):
 def find_user_prescription(user_id, prescription_id):
     # Modify the query to conditionally include the StageName filter
     if prescription_id == None:
-        query = f"SELECT ID, Account__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Account__c = '{user_id}'"
+        query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Account__c = '{user_id}'"
     else:
-        query = f"SELECT ID, Account__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Account__c = '{user_id}' AND Prescription__c = '{prescription_id}'"
+        query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Account__c = '{user_id}' AND Prescription__c = '{prescription_id}'"
 
     response = sf.query(query)
 
@@ -191,6 +198,7 @@ def find_user_prescription(user_id, prescription_id):
             prescription_prescribing_clinic = prescription_details.get('Prescribing_Clinic__c')
             prescription_creation_date = prescription_details.get('Prescription_Created_Date__c')
             prescription_name = prescription_details.get('Name')
+            prescription_instructions = prescription_details.get('Instructions__c')
 
             line_items_query = f"SELECT ID, Brand_Name__c, Generic_Name__c, Tablet__c, Prescription__c, Frequency__c, Units_per_Day__c FROM Prescription_Line_Item__c WHERE Prescription__c = '{prescription_id}'"
             line_items_response = sf.query(line_items_query)
@@ -216,6 +224,7 @@ def find_user_prescription(user_id, prescription_id):
                 "prescribingClinic": prescription_prescribing_clinic,
                 "creationDate": prescription_creation_date,
                 "prescriptionNumber": prescription_name,
+                "instructions":prescription_instructions,
                 "prescriptionLineItems": line_items  # List of all items
             }
             prescription_summaries.append(prescription_summary)
@@ -341,6 +350,23 @@ def update_user(update_data, user_id):
         return new_user_response
     except SalesforceResourceNotFound:
         return jsonify({'error': 'User not found in Salesforce with ID: {}'.format(user_id)}), 404
+    except SalesforceMalformedRequest as e:
+        return jsonify({'error': 'Invalid data provided; Salesforce could not process the request. Details: {}'.format(e)}),400
+    except Exception as e:
+        return jsonify({'error': 'An unexpected error occurred: {}'.format(e)}),500
+
+def update_rating_sf(opportunity_id, rating):
+    try:
+        sf.Opportunity.update(opportunity_id, {
+            'Net_Promoter_Score__c': rating
+        })
+        new_user_response = {
+            'response': 'Rating updated successfully!',
+            'opportunityId': opportunity_id
+        }
+        return new_user_response
+    except SalesforceResourceNotFound:
+        return jsonify({'error': 'User not found in Salesforce with ID: {}'.format(opportunity_id)}), 404
     except SalesforceMalformedRequest as e:
         return jsonify({'error': 'Invalid data provided; Salesforce could not process the request. Details: {}'.format(e)}),400
     except Exception as e:
