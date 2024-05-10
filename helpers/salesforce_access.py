@@ -28,7 +28,7 @@ def find_payment_method_of_user(user_id):
         return None
     
 def find_user(user_id):
-    query = f"SELECT Name, Account_ID__c, Phone, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts), (SELECT Name, Customer__c, Subscription_Start_Date__c, Subscription_End_Date__c, Delivery_Frequency__c FROM Subscriptions__r) FROM Account WHERE ID = '{user_id}'"
+    query = f"SELECT Name, Account_ID__c, Phone, CurrencyIsoCode, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts), (SELECT Name, Customer__c, Subscription_Start_Date__c, Subscription_End_Date__c, Delivery_Frequency__c FROM Subscriptions__r) FROM Account WHERE ID = '{user_id}'"
     response = sf.query(query)
 
     if response['totalSize'] > 0:
@@ -41,6 +41,7 @@ def find_user(user_id):
             "altPhoneNumber": account_details.get('Alternate_Phone__c'),
             "cumulativeOrders": account_details.get('Orders_Placed__c'),
             "cumulativeAmount": account_details.get('Total_Order_Amount__c'),
+            "currency": account_details.get('CurrencyIsoCode'),
             "country": account_details.get('Country__c'),
             "contacts": [],
             "subscriptions":[]
@@ -80,11 +81,11 @@ def find_user(user_id):
 def find_user_order(user_id, stage):
     # Modify the query to conditionally include the StageName filter
     if stage.lower() == "all":
-        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
+        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}'"
     elif stage.lower() == "pending":
-        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
+        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
     elif stage.lower() == "past":
-        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
+        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
     else:
         raise ValueError("Invalid stage provided. Please use 'pending' or 'past'.")
 
@@ -106,6 +107,7 @@ def find_user_order(user_id, stage):
             opportunity_created_date = opportunity_details.get('Created_Date__c')
             opportunity_delivery_date = opportunity_details.get('Delivery_SLA_Date__c')
             opportunity_payment_status = opportunity_details.get('Payment_Status__c')
+            opportunity_currency = opportunity_details.get('CurrencyIsoCode')
             if stage == 'Pending':
                 opportunity_rating = None
             else:
@@ -177,6 +179,7 @@ def find_user_order(user_id, stage):
                 "createdDate": opportunity_created_date,
                 "currentStage": opportunity_stage,
                 "paymentStatus": opportunity_payment_status,
+                "currency": opportunity_currency,
                 "opportunityItems": opportunity_items,  # List of all items
                 "subscription":subscription_details
             }
