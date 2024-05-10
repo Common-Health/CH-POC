@@ -112,13 +112,19 @@ def find_user_order(user_id, stage):
             subscription_id = opportunity_details.get('Subscription__c')
             subscription_details = []
             if subscription_id:
-                subscription_query = f"SELECT Name, Customer__r.Name FROM Subscription__c WHERE Subscription__c.Id = '{subscription_id}'"
+                subscription_query = f"SELECT Name, Customer__r.Name, Account__r.Name FROM Subscription__c WHERE Subscription__c.Id = '{subscription_id}'"
                 subscriptions_data = sf.query(subscription_query)
                 if subscriptions_data['totalSize'] > 0:
                     for subscription in subscriptions_data['records']:
+                        customer_name = subscription.get('Customer__r')
+                        if customer_name:
+                            customer_name = customer_name.get('Name')
+                        else:
+                            customer_name = None
                         subscription_detail = {
                             "name": subscription.get('Name'),
-                            "customerName": subscription.get('Customer__r').get('Name')
+                            "customerName": customer_name,
+                            "accountHolder": subscription.get('Account__r').get('Name')
                         }
                         subscription_details.append(subscription_detail)
             opp_item_query = f"SELECT Product__c, Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
