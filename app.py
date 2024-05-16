@@ -84,11 +84,20 @@ def initiate_payment():
     try:
         token = get_payment_token()
         received_data = request.json
+        provider_name = received_data["providerName"]
         json_string = custom_format(received_data)
 
         payload_encrypt = encrypt_rsa(json_string).encrypt()
 
         result = send_post_request(BASE_URL+"api/pay",token,payload_encrypt)
+        if provider_name != "AYA Pay":
+            webview_link = os.getenv('DINGER_STAGING_SITE')
+            transaction_no = result["response"]["transactionNum"]
+            form_token = result["response"]["formToken"]
+            merchant_order_id = result["response"]["merchOrderId"]
+            result = {
+                "link": webview_link + f"formCheckout?transactionNo={transaction_no}&formToken={form_token}&merchantOrderId={merchant_order_id}"
+            }
         return result
     except Exception as e:
         return jsonify({"error": str(e)}), 500
