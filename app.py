@@ -124,7 +124,7 @@ def get_payment_method(user_id):
         return jsonify({"error": str(e)}), 500
     
 @app.route('/api/create_payment_method/<account_id>', methods=['POST'])
-@jwt_required
+@jwt_required()
 def new_payment_method(account_id):
     try:
         data = request.json
@@ -134,7 +134,7 @@ def new_payment_method(account_id):
         return jsonify({'error': str(e)}), 400
 
 @app.route('/api/update_payment_method/<payment_id>', methods=['POST'])
-@jwt_required
+@jwt_required()
 def update_existing_payment_method(payment_id):
     try:
         data = request.json
