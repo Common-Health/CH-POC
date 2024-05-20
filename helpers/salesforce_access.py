@@ -438,6 +438,48 @@ def validate_pin(phone, pin):
         return user_details
     else:
         raise ValueError("Wrong PIN!")
+    
+
+def create_payment_method(account_id, data):
+    try:
+        new_payment = {
+            'Provider_Name__c': data['providerName'],
+            'Method_Name__c': data['methodName'],
+            'Customer_Phone_Number__c': data['customerPhone'],
+            'Customer_Name__c': data['customerName'],
+            'Default_Payment_Method__c': data['defaultPaymentMethod'],
+            'CurrencyIsoCode': data['currency'],
+            'Account__c': account_id
+        }
+        response = sf.Payment__c.create(new_payment)
+        return response
+    except SalesforceMalformedRequest as e:
+        raise e
+
+def update_payment_method(payment_id, data):
+    try:
+        update_payment = {}
+        if 'providerName' in data:
+            update_payment['Provider_Name__c'] = data['providerName']
+        if 'methodName' in data:
+            update_payment['Method_Name__c'] = data['methodName']
+        if 'customerPhone' in data:
+            update_payment['Customer_Phone_Number__c'] = data['customerPhone']
+        if 'customerName' in data:
+            update_payment['Customer_Name__c'] = data['customerName']
+        if 'defaultPaymentMethod' in data:
+            update_payment['Default_Payment_Method__c'] = data['defaultPaymentMethod']
+        if 'currency' in data:
+            update_payment['CurrencyIsoCode'] = data['currency']
+
+        response = sf.Payment__c.update(payment_id, update_payment)
+        
+        return {
+            "id": payment_id,
+            "message": "Payment method updated successfully"
+        }
+    except SalesforceMalformedRequest as e:
+        raise e
 
 # # account_id_to_find = 'A-41225'
 # account_id_to_find = '001VE000008xC0dYAE'

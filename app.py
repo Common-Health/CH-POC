@@ -2,9 +2,10 @@ from flask import Flask, request, redirect, jsonify
 from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 from pay_api import encrypt_rsa, PrpCrypt
-from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf
+from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method
 import os
 import json
+from datetime import timedelta
 import requests
 from flask_cors import CORS
 
@@ -13,6 +14,7 @@ app = Flask(__name__)
 load_dotenv()
 CORS(app)
 app.config['JWT_SECRET_KEY'] = os.getenv('BEARER_SECRET_KEY')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=30)
 
 jwt = JWTManager(app)
 PROJECT_NAME = os.getenv('PROJECT_NAME')
@@ -120,6 +122,26 @@ def get_payment_method(user_id):
         return user_payment_method
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/create_payment_method/<account_id>', methods=['POST'])
+@jwt_required
+def new_payment_method(account_id):
+    try:
+        data = request.json
+        response = create_payment_method(account_id, data)
+        return jsonify(response), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/update_payment_method/<payment_id>', methods=['POST'])
+@jwt_required
+def update_existing_payment_method(payment_id):
+    try:
+        data = request.json
+        response = update_payment_method(payment_id, data)
+        return jsonify(response), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
     
 @app.route('/api/get_order/<user_id>/<stage>', methods=['POST'])
 @jwt_required()
