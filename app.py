@@ -14,7 +14,7 @@ app = Flask(__name__)
 load_dotenv()
 CORS(app)
 app.config['JWT_SECRET_KEY'] = os.getenv('BEARER_SECRET_KEY')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=30)
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=60)
 
 jwt = JWTManager(app)
 PROJECT_NAME = os.getenv('PROJECT_NAME')
