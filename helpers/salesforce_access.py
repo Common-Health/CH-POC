@@ -11,21 +11,24 @@ security_token = os.getenv('SF_SECURITY_TOKEN')
 sf = Salesforce(username=username, password=password, security_token=security_token, domain='test')
 
 def find_payment_method_of_user(user_id):
-    query = f"SELECT Provider_Name__c, Method_Name__c, Customer_Phone_Number__c, Customer_Name__c,Default_Payment_Method__c FROM Payment__c WHERE Account__c = '{user_id}'"
+    query = f"SELECT Id, Provider_Name__c, Method_Name__c, Customer_Phone_Number__c, Customer_Name__c, Default_Payment_Method__c FROM Payment__c WHERE Account__c = '{user_id}'"
     response = sf.query(query)
 
     if response['totalSize'] > 0:
-        account_details = response['records'][0]
-        user_details={
-            "providerName":account_details.get('Provider_Name__c'),
-            "methodName":account_details.get('Method_Name__c'),
-            "customerPhone":account_details.get('Customer_Phone_Number__c'),
-            "customerName":account_details.get('Customer_Name__c'),
-            "defaultPaymentMethod":account_details.get('Default_Payment_Method__c')
-        }
-        return user_details
+        user_details_list = []
+        for account_details in response['records']:
+            user_details = {
+                "paymentMethodId": account_details.get('Id'),
+                "providerName": account_details.get('Provider_Name__c'),
+                "methodName": account_details.get('Method_Name__c'),
+                "customerPhone": account_details.get('Customer_Phone_Number__c'),
+                "customerName": account_details.get('Customer_Name__c'),
+                "defaultPaymentMethod": account_details.get('Default_Payment_Method__c')
+            }
+            user_details_list.append(user_details)
+        return user_details_list
     else:
-        return None
+        return []
     
 def find_user(user_id):
     query = f"SELECT Name, Account_ID__c, Phone, CurrencyIsoCode, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts), (SELECT Name, Customer__c, Subscription_Start_Date__c, Subscription_End_Date__c, Delivery_Frequency__c FROM Subscriptions__r) FROM Account WHERE ID = '{user_id}'"
