@@ -249,13 +249,13 @@ def find_user_prescription(user_id, prescription_id):
     
 def get_contact_related_data(contact_id):
     try:
-        # Querying only the Name, Id, and Phone of the contact
+        # Querying only the Name, Id, Phone, and Age of the contact
         contact_data = sf.query(f"SELECT Id, Name, Phone, Age__c FROM Contact WHERE Id = '{contact_id}'")['records'][0]
         contact_info = {
             'id': contact_data['Id'],
             'name': contact_data['Name'],
             'phone': contact_data['Phone'],
-            'age':contact_data['Age__c']
+            'age': contact_data['Age__c']
         }
 
         # Querying prescriptions and their line items
@@ -299,10 +299,36 @@ def get_contact_related_data(contact_id):
             } for sub in subscription_query
         ]
 
+        # Querying opportunities associated with the contact and their line items
+        opportunity_query = sf.query_all(f"""
+            SELECT Id, Opportunity_Number__c, Name, CloseDate
+            FROM Opportunity
+            WHERE StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won') AND Patient_Name__c = '{contact_id}'
+        """)['records']
+
+        opportunities = []
+        for opportunity in opportunity_query:
+            opp_id = opportunity['Id']
+            line_item_query = sf.query_all(f"""
+                SELECT Price__c
+                FROM Opportunity_Item__c
+                WHERE Opportunity__c = '{opp_id}'
+            """)['records']
+
+            opportunity_info = {
+                'opportunityId': opp_id,
+                'opportunityNumber': opportunity['Opportunity_Number__c'],
+                'opportunityName': opportunity['Name'],
+                'closeDate': opportunity['CloseDate'],
+                'price': line_item_query[0]['Price__c'] if line_item_query else None
+            }
+            opportunities.append(opportunity_info)
+
         return {
             "contact": contact_info,
             "prescriptions": prescriptions,
-            "subscriptions": subscriptions
+            "subscriptions": subscriptions,
+            "opportunities": opportunities
         }
     except Exception as e:
         return {"error": str(e)}
