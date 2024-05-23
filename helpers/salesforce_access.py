@@ -2,13 +2,16 @@ from simple_salesforce import Salesforce, SalesforceResourceNotFound, Salesforce
 from dotenv import load_dotenv
 import os
 from flask import jsonify
+import requests
 
 load_dotenv()
 username = os.getenv('SF_USERNAME')
 password = os.getenv('SF_PASSWORD')
 security_token = os.getenv('SF_SECURITY_TOKEN')
+access_key = os.getenv('ACCESS_KEY')
 
 sf = Salesforce(username=username, password=password, security_token=security_token, domain='test')
+BASEURL = f"https://{os.getenv('SHOP_URL')}/admin/api/{os.getenv('API_VERSION')}"
 
 def find_payment_method_of_user(user_id):
     query = f"SELECT Id, Provider_Name__c, Method_Name__c, Customer_Phone_Number__c, Customer_Name__c, Default_Payment_Method__c FROM Payment__c WHERE Account__c = '{user_id}'"
@@ -332,6 +335,39 @@ def get_contact_related_data(contact_id):
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+def check_user_status(user_phone):
+    existing_accounts = sf.query(f"SELECT Id, PIN_Code__c, Shopify_Customer_ID__c FROM Account WHERE Phone = '{user_phone}'")
+    # user_phone = format_phone_number(user_phone)
+    shopify_check_user_url = BASEURL + f"/customers/search.json"
+    params = {
+        'query': f'phone:{user_phone}'
+    }
+
+    response = requests.get(shopify_check_user_url, params=params, headers={"X-Shopify-Access-Token": access_key})
+    response_data = response.json()
+
+    if response.status_code != 200 or response_data['customers'] == []:
+        shopify_status = "no_account"
+    else:
+        shopify_status = "account_exists"
+
+    if existing_accounts['totalSize'] > 0:
+        # Account exists
+        account = existing_accounts['records'][0]
+        account_id = account['Id']
+        
+        if not account['PIN_Code__c'] and shopify_status == "no_account":
+            return {"status": "exists_no_pin", "account_id": account_id, "shopify_status": shopify_status}
+        elif not account['PIN_Code__c'] and shopify_status == "account_exists":
+            return {"status": "exists_no_pin", "account_id": account_id, "shopify_status": shopify_status}
+        elif account['PIN_Code__c'] and shopify_status == "no_account":
+            return {"status": "exists_with_pin", "account_id": account_id, "shopify_status": shopify_status}
+        elif account['PIN_Code__c'] and shopify_status == "account_exists":
+            return {"status": "exists_with_pin", "account_id": account_id, "shopify_status": shopify_status}
+    else:
+        return {"status": "not_exists", "shopify_status": shopify_status}
 
 def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, firebase_uid):
     
