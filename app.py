@@ -152,12 +152,12 @@ def get_order(user_id,stage):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-@app.route('/api/get_prescription/<user_id>/', defaults={'prescription_id': None}, methods=['POST'])
-@app.route('/api/get_prescription/<user_id>/<prescription_id>', methods=['POST'])
+@app.route('/api/get_prescription/<patient_id>/', defaults={'prescription_id': None}, methods=['POST'])
+@app.route('/api/get_prescription/<patient_id>/<prescription_id>', methods=['POST'])
 @jwt_required()
-def get_prescription(user_id, prescription_id):
+def get_prescription(patient_id, prescription_id):
     try:
-        prescription_summary = find_user_prescription(user_id, prescription_id)
+        prescription_summary = find_user_prescription(patient_id, prescription_id)
         return prescription_summary
     except Exception as e:
         return jsonify({"error": str(e)}), 500

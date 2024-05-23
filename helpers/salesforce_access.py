@@ -199,12 +199,12 @@ def find_user_order(user_id, stage):
     else:
         return {"msg": "No Opportunities found associated with the user"}
     
-def find_user_prescription(user_id, prescription_id):
+def find_user_prescription(patient_id, prescription_id):
     # Modify the query to conditionally include the StageName filter
     if prescription_id == None:
-        query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Account__c = '{user_id}'"
+        query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Patient__c = '{patient_id}'"
     else:
-        query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Account__c = '{user_id}' AND Prescription__c = '{prescription_id}'"
+        query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Patient__c = '{patient_id}' AND Prescription__c = '{prescription_id}'"
 
     response = sf.query(query)
 
@@ -268,7 +268,7 @@ def get_contact_related_data(contact_id):
 
         # Querying prescriptions and their line items
         prescription_query = sf.query_all(f"""
-            SELECT Id, Name, (SELECT Id, Name, Brand_Name__c, Generic_Name__c, Status__c, Frequency__c FROM Prescription_Line_Items__r)
+            SELECT Id, Name, Prescribing_Practitioner__c, (SELECT Id, Name, Brand_Name__c, Generic_Name__c, Status__c, Frequency__c FROM Prescription_Line_Items__r)
             FROM Prescription__c
             WHERE Patient__c = '{contact_id}'
         """)['records']
@@ -278,6 +278,8 @@ def get_contact_related_data(contact_id):
             {
                 'prescriptionId': pres['Id'],
                 'prescriptionName': pres['Name'],
+                'expirationDate': None,
+                'prescriber': pres.get('Prescribing_Practitioner__c'),
                 'prescriptionLineItems': [
                     {
                         'id': item['Id'],
@@ -309,7 +311,7 @@ def get_contact_related_data(contact_id):
 
         # Querying opportunities associated with the contact and their line items
         opportunity_query = sf.query_all(f"""
-            SELECT Id, Opportunity_Number__c, Name, CloseDate
+            SELECT Id, Opportunity_Number__c, Name, CloseDate, Order_Duration__c
             FROM Opportunity
             WHERE StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won') AND Patient_Name__c = '{contact_id}'
         """)['records']
@@ -328,6 +330,7 @@ def get_contact_related_data(contact_id):
                 'opportunityNumber': opportunity['Opportunity_Number__c'],
                 'opportunityName': opportunity['Name'],
                 'closeDate': opportunity['CloseDate'],
+                'orderDuration': opportunity.get('Order_Duration__c'),
                 'price': line_item_query[0]['Price__c'] if line_item_query else None
             }
             opportunities.append(opportunity_info)
