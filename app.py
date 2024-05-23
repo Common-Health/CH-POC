@@ -219,7 +219,8 @@ def create_account():
             user_country = received_data['country']
             user_pin = received_data['PIN']
             firebase_uid = received_data['firebaseUid']
-            new_user_response = create_new_user(user_name, user_phone, fcm_token,user_country,user_pin, firebase_uid)
+            shopify_status = received_data['shopifyStatus']
+            new_user_response = create_new_user(user_name, user_phone, fcm_token,user_country,user_pin, firebase_uid, shopify_status)
             return new_user_response
     except Exception as e:
         return jsonify({"error": str(e)}), 500
