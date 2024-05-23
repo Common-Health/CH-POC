@@ -35,7 +35,7 @@ def find_payment_method_of_user(user_id):
         return []
     
 def find_user(user_id):
-    query = f"SELECT Name, Display_Photo_URL__c Account_ID__c, Phone, CurrencyIsoCode, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts), (SELECT Name, Customer__c, Subscription_Start_Date__c, Subscription_End_Date__c, Delivery_Frequency__c FROM Subscriptions__r) FROM Account WHERE ID = '{user_id}'"
+    query = f"SELECT Name, Display_Photo_URL__c Account_ID__c, Geolocation__c, ShippingAddress, Phone, CurrencyIsoCode, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts), (SELECT Name, Customer__c, Subscription_Start_Date__c, Subscription_End_Date__c, Delivery_Frequency__c FROM Subscriptions__r) FROM Account WHERE ID = '{user_id}'"
     response = sf.query(query)
 
     if response['totalSize'] > 0:
@@ -51,6 +51,8 @@ def find_user(user_id):
             "currency": account_details.get('CurrencyIsoCode'),
             "country": account_details.get('Country__c'),
             "displayPhoto": account_details.get('Display_Photo_URL__c'),
+            "shippingAddress": account_details.get('ShippingAddress'),
+            "geolocation": account_details.get('Geolocation__c'),
             "contacts": [],
             "subscriptions":[]
         }
