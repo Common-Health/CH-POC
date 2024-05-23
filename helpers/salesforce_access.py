@@ -35,7 +35,7 @@ def find_payment_method_of_user(user_id):
         return []
     
 def find_user(user_id):
-    query = f"SELECT Name, Account_ID__c, Phone, CurrencyIsoCode, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts), (SELECT Name, Customer__c, Subscription_Start_Date__c, Subscription_End_Date__c, Delivery_Frequency__c FROM Subscriptions__r) FROM Account WHERE ID = '{user_id}'"
+    query = f"SELECT Name, Display_Photo_URL__c Account_ID__c, Phone, CurrencyIsoCode, Alternate_Phone__c, Total_Order_Amount__c, Orders_Placed__c, Country__c, (SELECT Id, AccountId, Name, OtherPhone, Member_ID__c, Age__c, HOH_Relationship__c FROM Contacts), (SELECT Name, Customer__c, Subscription_Start_Date__c, Subscription_End_Date__c, Delivery_Frequency__c FROM Subscriptions__r) FROM Account WHERE ID = '{user_id}'"
     response = sf.query(query)
 
     if response['totalSize'] > 0:
@@ -50,6 +50,7 @@ def find_user(user_id):
             "cumulativeAmount": account_details.get('Total_Order_Amount__c'),
             "currency": account_details.get('CurrencyIsoCode'),
             "country": account_details.get('Country__c'),
+            "displayPhoto": account_details.get('Display_Photo_URL__c'),
             "contacts": [],
             "subscriptions":[]
         }
@@ -254,12 +255,13 @@ def find_user_prescription(user_id, prescription_id):
 def get_contact_related_data(contact_id):
     try:
         # Querying only the Name, Id, Phone, and Age of the contact
-        contact_data = sf.query(f"SELECT Id, Name, Phone, Age__c FROM Contact WHERE Id = '{contact_id}'")['records'][0]
+        contact_data = sf.query(f"SELECT Id, Display_Photo_URL__c, Name, Phone, Age__c FROM Contact WHERE Id = '{contact_id}'")['records'][0]
         contact_info = {
             'id': contact_data['Id'],
             'name': contact_data['Name'],
             'phone': contact_data['Phone'],
-            'age': contact_data['Age__c']
+            'age': contact_data['Age__c'],
+            'displayPhoto':contact_data['Display_Photo_URL__c']
         }
 
         # Querying prescriptions and their line items
