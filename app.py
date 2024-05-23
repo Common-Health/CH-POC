@@ -2,7 +2,7 @@ from flask import Flask, request, redirect, jsonify
 from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 from pay_api import encrypt_rsa, PrpCrypt
-from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method, check_user_status
+from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method, check_user_status, handle_existing_customer_new_app_user
 import os
 import json
 from datetime import timedelta
@@ -187,7 +187,22 @@ def find_user():
 
         return response
     except Exception as e:
-        return jsonify({"error": str(e)}), 500   
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/create_pin/<user_id>', methods=['POST'])
+@jwt_required()
+def create_pin_for_old_customers(user_id):
+    try:
+        received_data = request.json
+        fcm_token = received_data['fcmToken']
+        user_pin = received_data['PIN']
+        firebase_uid = received_data['firebaseUid']
+        shopify_status = received_data['shopifyStatus']
+
+        response = handle_existing_customer_new_app_user(user_id, fcm_token, user_pin, firebase_uid, shopify_status)
+        return response
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/create_account',methods=['POST'])
 @jwt_required()

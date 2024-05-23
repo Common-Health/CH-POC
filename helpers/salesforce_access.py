@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 from flask import jsonify
 import requests
+import json
 
 load_dotenv()
 username = os.getenv('SF_USERNAME')
@@ -336,6 +337,28 @@ def get_contact_related_data(contact_id):
     except Exception as e:
         return {"error": str(e)}
 
+def create_shopify_customer(first_name, last_name, phone):
+    url = BASEURL+"/customers.json"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": access_key
+    }
+    customer_data = {
+        "customer": {
+            "first_name": first_name,
+            "last_name": last_name,
+            "phone": phone
+        }
+    }
+    
+    response = requests.post(url, headers=headers, data=json.dumps(customer_data))
+    
+    if response.status_code == 201:
+        print("Customer created successfully!")
+        return response.json()
+    else:
+        print(f"Failed to create customer. Status code: {response.status_code}, Response: {response.text}")
+        return None
 
 def check_user_status(user_phone):
     existing_accounts = sf.query(f"SELECT Id, PIN_Code__c, Shopify_Customer_ID__c FROM Account WHERE Phone = '{user_phone}'")
@@ -369,12 +392,64 @@ def check_user_status(user_phone):
     else:
         return {"status": "not_exists", "shopify_status": shopify_status}
 
-def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, firebase_uid):
+def handle_existing_customer_new_app_user(account_id, fcm_token, user_pin, firebase_uid, shopify_status):
+    account = sf.query(f"SELECT Name, Phone FROM Account WHERE Id = '{account_id}'")
+    user_name = account['records'][0]['Name']
+    user_phone = account['records'][0]['Phone']
+
+    shopify_id = ""
+
+    if shopify_status != "account_exists":
+        new_customer = create_shopify_customer(first_name="",last_name=user_name,phone=user_phone)
+        if new_customer:
+            shopify_id = new_customer['customer']['id']
+    else:
+        shopify_check_user_url = BASEURL + f"/customers/search.json"
+        params = {
+            'query': f'phone:{user_phone}'
+        }
+
+        response = requests.get(shopify_check_user_url, params=params, headers={"X-Shopify-Access-Token": access_key})
+        response_data = response.json()
+
+        if response.status_code != 200 or response_data['customers'] == []:
+            raise ValueError('Invalid Phone Number or Shopify Status')
+        else:
+            shopify_id=response_data['customers'][0]['id']
+    
+    sf.Account.update(account_id, {'PIN_Code__c': user_pin, 'FCM_Token__c': fcm_token, 'Firebase_UID__c': firebase_uid, 'Shopify_Customer_ID__c': shopify_id})
+    return {
+        'fcmToken': fcm_token,
+        'userId': account_id,
+        'firebaseUid': firebase_uid,
+        'Shopify_Customer_ID__c': shopify_id
+    }
+
+def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, firebase_uid, shopify_status):
     
     if user_country == "Philippines":
         currency = 'USD'
     elif user_country == "Myanmar":
         currency = 'MMK'
+    shopify_id = ""
+
+    if shopify_status != "account_exists":
+        new_customer = create_shopify_customer(first_name="",last_name=user_name,phone=user_phone)
+        if new_customer:
+            shopify_id = new_customer['customer']['id']
+    else:
+        shopify_check_user_url = BASEURL + f"/customers/search.json"
+        params = {
+            'query': f'phone:{user_phone}'
+        }
+
+        response = requests.get(shopify_check_user_url, params=params, headers={"X-Shopify-Access-Token": access_key})
+        response_data = response.json()
+
+        if response.status_code != 200 or response_data['customers'] == []:
+            raise ValueError('Invalid Phone Number or Shopify Status')
+        else:
+            shopify_id=response_data['customers'][0]['id']
 
     new_account = {
         'Name': user_name,
@@ -384,7 +459,8 @@ def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, fi
         'Country__c':user_country,
         'FCM_Token__c': fcm_token,
         'PIN_Code__c': user_pin,
-        'Firebase_UID__c':firebase_uid
+        'Firebase_UID__c':firebase_uid,
+        'Shopify_Customer_ID__c': shopify_id
     }
     response = sf.Account.create(new_account)
     new_contact = {
