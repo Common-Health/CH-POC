@@ -179,7 +179,7 @@ def get_user(user_id):
     
 @app.route('/api/check_user', methods=['POST'])
 @jwt_required()
-def find_user():
+def find_user_login():
     try:
         received_data = request.json
         phone = received_data['phone']
