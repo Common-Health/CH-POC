@@ -368,7 +368,7 @@ def create_shopify_customer(first_name, last_name, phone):
         return None
 
 def check_user_status(user_phone):
-    existing_accounts = sf.query(f"SELECT Id, PIN_Code__c, Shopify_Customer_ID__c FROM Account WHERE Phone = '{user_phone}'")
+    existing_accounts = sf.query(f"SELECT Id, PIN_Code__c, Name, Shopify_Customer_ID__c FROM Account WHERE Phone = '{user_phone}'")
     # user_phone = format_phone_number(user_phone)
     shopify_check_user_url = BASEURL + f"/customers/search.json"
     params = {
@@ -387,12 +387,19 @@ def check_user_status(user_phone):
         # Account exists
         account = existing_accounts['records'][0]
         account_id = account['Id']
+        account_name = account['Name']
         
         if not account['PIN_Code__c'] and shopify_status == "no_account":
             return {"status": "exists_no_pin", "account_id": account_id, "shopify_status": shopify_status}
         elif not account['PIN_Code__c'] and shopify_status == "account_exists":
             return {"status": "exists_no_pin", "account_id": account_id, "shopify_status": shopify_status}
         elif account['PIN_Code__c'] and shopify_status == "no_account":
+            if not account['Shopify_Customer_ID__c']:
+                new_customer = create_shopify_customer(first_name="", last_name=account_name, phone=user_phone)
+                if new_customer:
+                    shopify_id = new_customer['customer']['id']
+                    if shopify_id:
+                        shopify_status = "account_exists"
             return {"status": "exists_with_pin", "account_id": account_id, "shopify_status": shopify_status}
         elif account['PIN_Code__c'] and shopify_status == "account_exists":
             return {"status": "exists_with_pin", "account_id": account_id, "shopify_status": shopify_status}
