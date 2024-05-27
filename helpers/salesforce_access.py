@@ -521,6 +521,21 @@ def update_user(update_data, user_id):
     except Exception as e:
         return jsonify({'error': 'An unexpected error occurred: {}'.format(e)}),500
 
+def update_user_pin(user_id, pin):
+    try:
+        sf.Account.update(user_id, {'PIN_Code__c':pin})
+        new_user_response = {
+            'response': 'Account updated successfully!',
+            'userId': user_id
+        }
+        return new_user_response
+    except SalesforceResourceNotFound:
+        return jsonify({'error': 'User not found in Salesforce with ID: {}'.format(user_id)}), 404
+    except SalesforceMalformedRequest as e:
+        return jsonify({'error': 'Invalid data provided; Salesforce could not process the request. Details: {}'.format(e)}),400
+    except Exception as e:
+        return jsonify({'error': 'An unexpected error occurred: {}'.format(e)}),500
+
 def update_rating_sf(opportunity_id, rating):
     try:
         sf.Opportunity.update(opportunity_id, {
@@ -635,6 +650,38 @@ def update_payment_method(payment_id, data):
         }
     except SalesforceMalformedRequest as e:
         raise e
+
+def create_payment_history(opportunity_id, merchant_order_id):
+    try:
+        account_query = f"""
+        SELECT AccountId
+        FROM Opportunity
+        WHERE Id = '{opportunity_id}'
+        """
+        account_result = sf.query(account_query)
+
+        if account_result['records']:
+            account_id = account_result['records'][0]['AccountId']
+        else:
+            raise ValueError ("No Account found for the given Opportunity ID")
+
+        # Data to be inserted into Payment_History__c
+        payment_data = {
+            'Merchant_Order_ID__c': merchant_order_id,
+            'CurrencyIsoCode': 'MMK',
+            'Opportunity__c':opportunity_id,
+            'Account__c': account_id  # Assuming AccountId__c is the relationship field on Payment_History__c
+        }
+
+        # Insert the new Payment History record
+        sf.Payment_History__c.create(payment_data)
+        return {
+            "success": "Payment history created successfully",
+            "merchantOrderId": merchant_order_id
+                }
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # # account_id_to_find = 'A-41225'
 # account_id_to_find = '001VE000008xC0dYAE'

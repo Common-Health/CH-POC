@@ -2,7 +2,7 @@ from flask import Flask, request, redirect, jsonify
 from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 from pay_api import encrypt_rsa, PrpCrypt
-from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method, check_user_status, handle_existing_customer_new_app_user
+from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method, check_user_status, handle_existing_customer_new_app_user, update_user_pin, create_payment_history
 import os
 import json
 from datetime import timedelta
@@ -176,6 +176,28 @@ def get_user(user_id):
         return user_profile
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/update_pin/<user_id>', methods=['POST'])
+@jwt_required()
+def update_pin(user_id):
+    try:
+        data = request.json
+        pin = data['PIN']
+        response = update_user_pin(user_id, pin)
+        return jsonify(response), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    
+@app.route('/api/create_payment_history/<opportunity_id>', methods=['POST'])
+@jwt_required()
+def new_payment_history(opportunity_id):
+    try:
+        data = request.json
+        merchant_order_id = data['merchantOrderId']
+        response = create_payment_history(opportunity_id, merchant_order_id)
+        return jsonify(response), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
     
 @app.route('/api/check_user', methods=['POST'])
 @jwt_required()
