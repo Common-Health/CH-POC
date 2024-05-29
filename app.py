@@ -24,7 +24,7 @@ BASE_URL = os.getenv('BASE_URL')
 # Function to load JSON data based on an identifier
 def load_json(identifier):
     # Define the relative path to the file
-    relative_path = os.path.join('files', f'{identifier}')
+    relative_path = os.path.join('files', f'{identifier}.json')
     
     # Get the absolute path based on the current working directory
     filepath = os.path.abspath(relative_path)
@@ -40,7 +40,7 @@ def load_json(identifier):
     return data
 
 # Define a route to serve JSON data based on an identifier
-@app.route('/data/<identifier>', methods=['GET'])
+@app.route('/.well-known/<identifier>', methods=['GET'])
 def get_data(identifier):
     data = load_json(identifier)
     if data is None:

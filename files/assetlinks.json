@@ -1,0 +1,9 @@
+[{
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.commonhealth.mm",
+      "sha256_cert_fingerprints":
+      ["C2:77:A9:E6:AF:B8:93:16:B1:00:BE:C8:60:48:77:81:91:92:F1:A2:24:E0:68:84:2F:7B:5B:F7:83:C1:1C:E8"]
+    }
+  }]
