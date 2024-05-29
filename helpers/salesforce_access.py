@@ -295,7 +295,7 @@ def get_contact_related_data(contact_id):
 
         # Querying subscriptions
         subscription_query = sf.query_all(f"""
-            SELECT Id, Name, Delivery_Frequency__c
+            SELECT Id, Name, Delivery_Frequency__c, Next_Billing_Date__c, Next_Delivery_Date__c
             FROM Subscription__c
             WHERE Customer__c = '{contact_id}'
         """)['records']
@@ -305,7 +305,9 @@ def get_contact_related_data(contact_id):
             {
                 'subscriptionId': sub['Id'],
                 'subscriptionName': sub['Name'],
-                'deliveryFrequency': sub['Delivery_Frequency__c']
+                'deliveryFrequency': sub['Delivery_Frequency__c'],
+                'nextBillingDate':sub['Next_Billing_Date__c'],
+                'nextDeliveryDate':sub['Next_Delivery_Date__c']
             } for sub in subscription_query
         ]
 
