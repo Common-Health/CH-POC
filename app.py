@@ -1,7 +1,6 @@
-from flask import Flask, request, redirect, jsonify
+from flask import Flask, request, redirect, jsonify, abort
 from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get_jwt_identity
 from dotenv import load_dotenv
-from pay_api import encrypt_rsa, PrpCrypt
 from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method, check_user_status, handle_existing_customer_new_app_user, update_user_pin, create_payment_history
 import os
 import json
@@ -22,94 +21,38 @@ API_KEY = os.getenv('API_KEY')
 MERCHANT_NAME = os.getenv('MERCHANT_NAME')
 BASE_URL = os.getenv('BASE_URL')
 
-def get_payment_token():
-    # Build the full URL
-    url = f"{BASE_URL}api/token?projectName={PROJECT_NAME}&apiKey={API_KEY}&merchantName={MERCHANT_NAME}"
+# Function to load JSON data based on an identifier
+def load_json(identifier):
+    # Define the relative path to the file
+    relative_path = os.path.join('files', f'{identifier}')
     
-    # Send GET request
-    response = requests.get(url)
+    # Get the absolute path based on the current working directory
+    filepath = os.path.abspath(relative_path)
     
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Parse JSON response
-        data = response.json()
-        
-        # Extract paymentToken
-        payment_token = data["response"]["paymentToken"]
-        
-        if payment_token:
-            return payment_token
-        else:
-            raise ValueError("Payment Token not found in the response.")
-    else:
-        error_code = response.status_code
-        raise ValueError(f"Failed to retrieve data:{error_code}")
+    # Check if the file exists
+    if not os.path.exists(filepath):
+        return None
+    
+    # Open and load the JSON file
+    with open(filepath) as f:
+        data = json.load(f)
+    
+    return data
 
-def custom_format(data):
-    formatted_items = []
-    for key, value in data.items():
-        if isinstance(value, str):
-            formatted_value = f"'{value}'"
-        elif isinstance(value, list) or isinstance(value, dict):
-            # Convert list or dict to a JSON string and format it
-            formatted_value = json.dumps(value)
-            if isinstance(value, list):  # Special handling for lists
-                formatted_value = f"'{formatted_value}'"
-        else:
-            formatted_value = value
-        formatted_items.append(f"{key}: {formatted_value}")
-    return "{" + ",".join(formatted_items) + "}"
-
-def send_post_request(url, auth_token, payload_value):
-    # Headers dictionary
-    headers = {
-        'Authorization': f'Bearer {auth_token}',
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-
-    # Data dictionary: this will be url-encoded by requests
-    data = {
-        'payload': payload_value
-    }
-
-    # Sending the POST request
-    response = requests.post(url, headers=headers, data=data)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise ValueError('Failed to send POST request:', response.status_code, response.text)
-
-@app.route('/api/initiate_payment', methods=['POST'])
-def initiate_payment():
-    try:
-        token = get_payment_token()
-        received_data = request.json
-        provider_name = received_data["providerName"]
-        json_string = custom_format(received_data)
-
-        payload_encrypt = encrypt_rsa(json_string).encrypt()
-
-        result = send_post_request(BASE_URL+"api/pay",token,payload_encrypt)
-        if provider_name != "AYA Pay":
-            webview_link = os.getenv('DINGER_STAGING_SITE')
-            transaction_no = result["response"]["transactionNum"]
-            form_token = result["response"]["formToken"]
-            merchant_order_id = result["response"]["merchOrderId"]
-            result = {
-                "link": webview_link + f"formCheckout?transactionNo={transaction_no}&formToken={form_token}&merchantOrderId={merchant_order_id}"
-            }
-        return result
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# Define a route to serve JSON data based on an identifier
+@app.route('/data/<identifier>', methods=['GET'])
+def get_data(identifier):
+    data = load_json(identifier)
+    if data is None:
+        abort(404)  # Return a 404 error if the file does not exist
+    return jsonify(data)
 
 @app.route('/api/check_payment', methods=['POST'])
 def check_payment_status():
     try:
         received_data = request.json
         payment_result = received_data["paymentResult"]
-        result = PrpCrypt().decrypt(payment_result)
+        result = "This route is under renovation"
         return result
     except Exception as e:
         return jsonify({"error": str(e)}), 500
