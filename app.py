@@ -283,6 +283,7 @@ def update_account(user_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/update_opportunity/<opportunity_id>", methods=["POST"])
+@jwt_required()
 def update_opportunity(opportunity_id):
     try:
         received_data = request.json
@@ -357,6 +358,7 @@ def dict_to_sorted_string(d):
     return formatted_string
 
 @app.route("/api/query_order", methods=['POST'])
+@jwt_required()
 def query_order():
     try:
         received_data = request.json
