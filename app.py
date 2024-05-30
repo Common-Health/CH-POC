@@ -3,7 +3,11 @@ from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get
 from dotenv import load_dotenv
 from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method, check_user_status, handle_existing_customer_new_app_user, update_user_pin, create_payment_history
 import os
+import time
+import random
+import string
 import json
+import hashlib
 from datetime import timedelta
 import requests
 from flask_cors import CORS
@@ -20,6 +24,11 @@ PROJECT_NAME = os.getenv('PROJECT_NAME')
 API_KEY = os.getenv('API_KEY')
 MERCHANT_NAME = os.getenv('MERCHANT_NAME')
 BASE_URL = os.getenv('BASE_URL')
+CUSTOM_HEADER = os.getenv('CUSTOM_HEADER')
+MERCH_CODE = os.getenv('MERCH_CODE')
+APP_ID = os.getenv('APP_ID')
+APP_KEY= os.getenv('APP_KEY')
+KBZ_URL= os.getenv('KBZ_URL')
 
 # Function to load JSON data based on an identifier
 def load_json(identifier):
@@ -47,15 +56,52 @@ def get_data(identifier):
         abort(404)  # Return a 404 error if the file does not exist
     return jsonify(data)
 
-@app.route('/api/check_payment', methods=['POST'])
-def check_payment_status():
-    try:
-        received_data = request.json
-        payment_result = received_data["paymentResult"]
-        result = "This route is under renovation"
-        return result
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# def check_payment_status():
+#     if request.method == 'POST':
+#         try:
+#             received_data = request.get_json(silent=True)
+#             payment_result = received_data["Request"]
+
+#             status = payment_result["trade_status"]
+#             merch_order_id = payment_result["merch_order_id"]
+#             total_amount = payment_result["total_amount"]
+#             transaction_id = payment_result["mm_order_id"]
+#             method_name = "APP"
+#             provider_name = "KBZ Pay"
+
+
+#             user_details = find_user_via_merchant_order_id(merch_order_id)
+#             fcm_token = user_details["fcm_token"]
+#             opportunity_id = user_details["opportunity_id"]
+#             payment_history_id = user_details["payment_history_id"]
+#             update_payment_history(payment_history_id, merch_order_id,opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
+
+#             if status.lower() == 'pay_success':
+#                 pay_status= "successful. Thank you for choosing Common Health."
+#             else:
+#                 pay_status = "not successful."
+
+#             message = messaging.Message(
+#                 token=fcm_token,
+#                 notification=messaging.Notification(
+#                     title='Payment Update',
+#                     body=f'Your payment for your order in Common Health is {pay_status}'
+#                 ),
+#                 data={
+#                     "orderId": opportunity_id,
+#                     "action": "redirect_to_orders"
+#                 }
+#             )
+
+#             try:
+#                 send_fcm_notification(message)
+#             except Exception as e:
+#                 print(f"Failed to send FCM notification: {str(e)}")
+#             return "success"
+#         except Exception as e:
+#             return jsonify({"error": str(e)}), 500
+#     else:
+#         return jsonify({"error": "Method not allowed"}), 405
     
 @app.route('/api/get_payment_method/<user_id>', methods=['POST'])
 @jwt_required()
@@ -276,5 +322,97 @@ def login(login_type):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def generate_random_string(length=32):
+    # Ensure the length does not exceed 32
+    length = min(length, 32)
+    
+    # Define the characters to choose from (uppercase, lowercase, digits)
+    characters = string.ascii_letters + string.digits
+    
+    # Generate a random string
+    random_string = ''.join(random.choice(characters) for _ in range(length))
+    
+    return random_string
+
+def flatten_dict(d, parent_key='', sep='_'):
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+def dict_to_sorted_string(d):
+    # Flatten the dictionary
+    flat_dict = flatten_dict(d)
+    
+    # Sort the dictionary by keys lexicographically
+    sorted_items = sorted(flat_dict.items())
+    
+    # Create the formatted string
+    formatted_string = '&'.join([f"{k}={v}" for k, v in sorted_items])
+    
+    return formatted_string
+
+@app.route("/api/query_order", methods=['POST'])
+def query_order():
+    try:
+        received_data = request.json
+        merchant_order_id = received_data['merchantOrderId']
+        timestamp_in_seconds = int(time.time())
+        nonce_str = generate_random_string(32)
+        query_request ={
+        "Request": {
+                "timestamp": str(timestamp_in_seconds),
+                "nonce_str": nonce_str,
+                "method": "kbz.payment.queryorder",
+                "version": "3.0",
+                "biz_content": {
+                    "appid": APP_ID,
+                    "merch_code": MERCH_CODE,
+                    "merch_order_id": merchant_order_id
+                    }
+                }
+        }
+        sorted_ascii_string = dict_to_sorted_string(query_request['Request']).replace("biz_content_","")
+        stringToSign = f"{sorted_ascii_string}&key={APP_KEY}"
+        hash_object = hashlib.sha256(stringToSign.encode())
+        sign = hash_object.hexdigest().upper()
+        query_request = {
+            "Request": {
+                "timestamp": str(timestamp_in_seconds),
+                "nonce_str": nonce_str,
+                "method": "kbz.payment.queryorder",
+                "sign_type": "SHA256",
+                "sign":sign,
+                "version": "3.0",
+                "biz_content": {
+                    "appid": APP_ID,
+                    "merch_code": MERCH_CODE,
+                    "merch_order_id": merchant_order_id
+                    }
+                }
+        }
+
+        query_request=json.dumps(query_request)
+        headers = {
+            "Content-Type": "application/json"
+        }
+        response = requests.post(url=KBZ_URL,data=query_request, headers=headers)
+        if response.status_code != 200:
+            return jsonify({"error":response}),500
+        response_data = response.json()
+
+        payment_response = requests.post(url="https://ch-poc-webhook.onrender.com/api/check_payment", json=response_data)
+        try:
+            final_response = payment_response.json()
+        except:
+            final_response = payment_response.text
+        return final_response
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)
