@@ -4,6 +4,17 @@ import os
 from flask import jsonify
 import requests
 import json
+import logging
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)  # Log to standard output
+    ]
+)
 
 load_dotenv()
 username = os.getenv('SF_USERNAME')
@@ -590,26 +601,36 @@ def find_user_by_phone(phone):
         raise ValueError ("No user found!")
 
 def validate_pin(phone, pin):
-    # Query to check if a user exists with the given phone number
-    user_query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}'"
-    user_response = sf.query(user_query)
+    try:
+        # Log the initial phone number and pin
+        logging.debug(f"Validating PIN for phone number: {phone}")
 
-    if user_response['totalSize'] == 0:
-        raise ValueError("No user found!")
-
-    # Query to check if the user with the given phone number has the correct PIN
-    pin_query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}' AND PIN_Code__c = {pin}"
-    pin_response = sf.query(pin_query)
-
-    if pin_response['totalSize'] > 0:
-        account_details = pin_response['records'][0]
-        user_details = {
-            "name": account_details.get('Name'),
-            "accountId": account_details.get('Id')
-        }
-        return user_details
-    else:
-        raise ValueError("Wrong PIN!")
+        # Query to check if a user exists with the given phone number
+        user_query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}'"
+        user_response = sf.query(user_query)
+        
+        if user_response['totalSize'] == 0:
+            logging.error(f"No user found for phone number: {phone}")
+            raise ValueError("No user found!")
+        
+        # Query to check if the user with the given phone number has the correct PIN
+        pin_query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}' AND PIN_Code__c = {pin}"
+        pin_response = sf.query(pin_query)
+        
+        if pin_response['totalSize'] > 0:
+            account_details = pin_response['records'][0]
+            user_details = {
+                "name": account_details.get('Name'),
+                "accountId": account_details.get('Id')
+            }
+            logging.info(f"User validated successfully for phone number: {phone}")
+            return user_details
+        else:
+            logging.error(f"Wrong PIN for phone number: {phone}")
+            raise ValueError("Wrong PIN!")
+    except Exception as e:
+        logging.exception("An error occurred during PIN validation")
+        raise
     
 
 def create_payment_method(account_id, data):
