@@ -9,7 +9,7 @@ import sys
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s %(levelname)s: %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout)  # Log to standard output
@@ -603,7 +603,7 @@ def find_user_by_phone(phone):
 def validate_pin(phone, pin):
     try:
         # Log the initial phone number and pin
-        logging.debug(f"Validating PIN for phone number: {phone}")
+        logging.info(f"Validating PIN for phone number: {phone}")
 
         # Query to check if a user exists with the given phone number
         user_query = f"SELECT Name, Id FROM Account WHERE Phone = '{phone}'"
