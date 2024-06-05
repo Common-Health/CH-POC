@@ -268,13 +268,20 @@ def find_user_prescription(patient_id, prescription_id):
 def get_contact_related_data(contact_id):
     try:
         # Querying only the Name, Id, Phone, and Age of the contact
-        contact_data = sf.query(f"SELECT Id, Display_Photo_URL__c, Name, Phone, Age__c FROM Contact WHERE Id = '{contact_id}'")['records'][0]
+        contact_data = sf.query(f"SELECT Id, Screening_Date__c, Risk_Percentage_for_Cardiovascular_Disea__c, Blood_Pressure__c, Random_Blood_Sugar__c, BMI__c, Height_cm__c, Weight_kg__c, Display_Photo_URL__c, Name, Phone, Age__c FROM Contact WHERE Id = '{contact_id}'")['records'][0]
         contact_info = {
             'id': contact_data['Id'],
             'name': contact_data['Name'],
             'phone': contact_data['Phone'],
             'age': contact_data['Age__c'],
-            'displayPhoto':contact_data['Display_Photo_URL__c']
+            'displayPhoto': contact_data['Display_Photo_URL__c'],
+            'screeningDate': contact_data['Screening_Date__c'],
+            'riskPercentageForCVD': contact_data['Risk_Percentage_for_Cardiovascular_Disea__c'],
+            'bloodPressure': contact_data['Blood_Pressure__c'],
+            'randomBloodSugar': contact_data['Random_Blood_Sugar__c'],
+            'bmi': contact_data['BMI__c'],
+            'heightCm': contact_data['Height_cm__c'],
+            'weightKg': contact_data['Weight_kg__c']
         }
 
         # Querying prescriptions and their line items
