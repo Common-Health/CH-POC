@@ -51,6 +51,8 @@ def load_json(identifier):
 # Define a route to serve JSON data based on an identifier
 @app.route('/.well-known/<identifier>', methods=['GET'])
 def get_data(identifier):
+    if identifier.endswith('.json'):
+        identifier= identifier[:-5]
     data = load_json(identifier)
     if data is None:
         abort(404)  # Return a 404 error if the file does not exist
