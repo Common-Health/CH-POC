@@ -681,7 +681,7 @@ def update_payment_method(payment_id, data):
     except SalesforceMalformedRequest as e:
         raise e
 
-def create_payment_history(opportunity_id, merchant_order_id):
+def create_payment_history(opportunity_id, merchant_order_id, provider_name):
     try:
         account_query = f"""
         SELECT AccountId
@@ -694,12 +694,21 @@ def create_payment_history(opportunity_id, merchant_order_id):
             account_id = account_result['records'][0]['AccountId']
         else:
             raise ValueError ("No Account found for the given Opportunity ID")
+        
+        method_name = ''
+
+        if provider_name == "MPU":
+            method_name = "OTP"
+        elif provider_name == "KBZ Pay":
+            method_name = "APP"
 
         # Data to be inserted into Payment_History__c
         payment_data = {
             'Merchant_Order_ID__c': merchant_order_id,
             'CurrencyIsoCode': 'MMK',
+            'Provider_Name__c': provider_name,
             'Opportunity__c':opportunity_id,
+            'Method_Name__c':method_name,
             'Account__c': account_id  # Assuming AccountId__c is the relationship field on Payment_History__c
         }
 

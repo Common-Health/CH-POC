@@ -185,7 +185,8 @@ def new_payment_history(opportunity_id):
     try:
         data = request.json
         merchant_order_id = data['merchantOrderId']
-        response = create_payment_history(opportunity_id, merchant_order_id)
+        provider_name = data['providerName']
+        response = create_payment_history(opportunity_id, merchant_order_id,provider_name)
         return jsonify(response), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 400
