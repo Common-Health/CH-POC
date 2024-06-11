@@ -291,13 +291,28 @@ def get_contact_related_data(contact_id):
             WHERE Patient__c = '{contact_id}'
         """)['records']
 
+        # Extract unique practitioner IDs
+        practitioner_ids = list(set(pres['Prescribing_Practitioner__c'] for pres in prescription_query if pres.get('Prescribing_Practitioner__c')))
+
+        # Second query to get practitioner names
+        if practitioner_ids:
+            practitioners_query = sf.query_all(f"""
+                SELECT Id, Name
+                FROM Contact
+                WHERE Id IN ({",".join([f"'{id}'" for id in practitioner_ids])})
+            """)['records']
+            # Create a dictionary for quick lookup of practitioner names
+            practitioners_dict = {pract['Id']: pract['Name'] for pract in practitioners_query}
+        else:
+            practitioners_dict = {}
+
         # Formatting prescriptions to include only specific fields
         prescriptions = [
             {
                 'prescriptionId': pres['Id'],
                 'prescriptionName': pres['Name'],
                 'expirationDate': None,
-                'prescriber': pres.get('Prescribing_Practitioner__c'),
+                'prescriber': practitioners_dict.get(pres.get('Prescribing_Practitioner__c')),
                 'prescriptionLineItems': [
                     {
                         'id': item['Id'],
@@ -307,7 +322,7 @@ def get_contact_related_data(contact_id):
                         'status': item['Status__c'],
                         'frequency': item['Frequency__c']
                     } for item in pres['Prescription_Line_Items__r']['records']
-                ] if 'Prescription_Line_Items__r' in pres else []
+                ] if pres.get('Prescription_Line_Items__r') and 'records' in pres['Prescription_Line_Items__r'] else []
             } for pres in prescription_query
         ]
 
