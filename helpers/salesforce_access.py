@@ -232,7 +232,7 @@ def find_user_prescription(patient_id, prescription_id):
             prescription_name = prescription_details.get('Name')
             prescription_instructions = prescription_details.get('Instructions__c')
 
-            line_items_query = f"SELECT ID, Brand_Name__c, Generic_Name__c, Tablet__c, Prescription__c, Frequency__c, Units_per_Day__c FROM Prescription_Line_Item__c WHERE Prescription__c = '{prescription_id}'"
+            line_items_query = f"SELECT ID, Brand_Name__c, Generic_Name__c, Notes__c, Status__c, Tablet__c, Prescription__c, Frequency__c, Units_per_Day__c FROM Prescription_Line_Item__c WHERE Prescription__c = '{prescription_id}'"
             line_items_response = sf.query(line_items_query)
 
             line_items = []
@@ -242,6 +242,8 @@ def find_user_prescription(patient_id, prescription_id):
                         "brandName": item.get('Brand_Name__c'),
                         "genericName": item.get('Generic_Name__c'),
                         "tablet": item.get('Tablet__c'),
+                        "notes": item.get('Notes__c'),
+                        "status": item.get('Status__c'),
                         "frequency": item.get('Frequency__c'),
                         "unitsPerDayInsulin": item.get('Units_per_Day__c')
                     }
@@ -286,7 +288,7 @@ def get_contact_related_data(contact_id):
 
         # Querying prescriptions and their line items
         prescription_query = sf.query_all(f"""
-            SELECT Id, Name, Prescribing_Practitioner__c, (SELECT Id, Name, Brand_Name__c, Generic_Name__c, Status__c, Frequency__c FROM Prescription_Line_Items__r)
+            SELECT Id, Name, Prescribing_Practitioner__c, (SELECT Id, Name, Brand_Name__c, Tablet__c, Notes__c, Generic_Name__c, Status__c, Frequency__c FROM Prescription_Line_Items__r)
             FROM Prescription__c
             WHERE Patient__c = '{contact_id}'
         """)['records']
@@ -320,6 +322,8 @@ def get_contact_related_data(contact_id):
                         'brandName': item['Brand_Name__c'],
                         'genericName': item['Generic_Name__c'],
                         'status': item['Status__c'],
+                        "tablet": item['Tablet__c'],
+                        "notes": item['Notes__c'],
                         'frequency': item['Frequency__c']
                     } for item in pres['Prescription_Line_Items__r']['records']
                 ] if pres.get('Prescription_Line_Items__r') and 'records' in pres['Prescription_Line_Items__r'] else []
