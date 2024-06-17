@@ -740,6 +740,50 @@ def create_payment_history(opportunity_id, merchant_order_id, provider_name):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+def create_salesforce_case(case_data):
+    try:
+        # Check required fields
+        required_fields = ['subject', 'description', 'suppliedName', 'suppliedEmail', 'sendbirdUserId', 'sendbirdChannelUrl', 'isEinsteinBotsCase']
+        for field in required_fields:
+            if field not in case_data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+
+        # Create a new Case with provided data
+        new_case = {
+            'Subject': case_data.get('subject'),
+            'Description': case_data.get('description'),
+            'SuppliedName': case_data.get('suppliedName'),
+            'SuppliedEmail': case_data.get('suppliedEmail'),
+            'Sendbird__UserId__c': case_data.get('sendbirdUserId'),
+            'Sendbird__ChannelUrl__c': case_data.get('sendbirdChannelUrl'),
+            'Sendbird__IsEinsteinBotsCase__c': case_data.get('isEinsteinBotsCase'),
+            'AccountId': case_data.get('sendbirdUserId')
+        }
+
+        # Insert the new case into Salesforce
+        case_result = sf.Case.create(new_case)
+        case_id = case_result['id']
+
+        # Query the Account to find the Contact with the same name as the Account holder
+        account_id = case_data.get('sendbirdUserId')
+        account = sf.Account.get(account_id)
+        contact_name = account['Name']
+
+        # Query for the contact with the same name
+        contacts = sf.query(f"SELECT Id FROM Contact WHERE (Name = '{contact_name}' OR LastName = '{contact_name}') AND AccountId = '{account_id}'")
+        if contacts['totalSize'] > 0:
+            contact_id = contacts['records'][0]['Id']
+
+            # Update the Case with the ContactId
+            sf.Case.update(case_id, {'ContactId': contact_id})
+
+        return jsonify({"success": True, "case_id": case_id}), 201
+
+    except SalesforceMalformedRequest as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # # account_id_to_find = 'A-41225'
 # account_id_to_find = '001VE000008xC0dYAE'

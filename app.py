@@ -1,7 +1,7 @@
 from flask import Flask, request, redirect, jsonify, abort
 from flask_jwt_extended import JWTManager, create_access_token,jwt_required, get_jwt_identity
 from dotenv import load_dotenv
-from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method, check_user_status, handle_existing_customer_new_app_user, update_user_pin, create_payment_history
+from helpers.salesforce_access import find_payment_method_of_user, find_user_order, find_user, create_new_user, update_user_fcm, find_user_by_phone, validate_pin, find_user_prescription, update_user, update_opportunity_sf, get_contact_related_data, update_rating_sf, create_payment_method, update_payment_method, check_user_status, handle_existing_customer_new_app_user, update_user_pin, create_payment_history, create_salesforce_case
 import os
 import time
 import random
@@ -58,52 +58,14 @@ def get_data(identifier):
         abort(404)  # Return a 404 error if the file does not exist
     return jsonify(data)
 
-# def check_payment_status():
-#     if request.method == 'POST':
-#         try:
-#             received_data = request.get_json(silent=True)
-#             payment_result = received_data["Request"]
-
-#             status = payment_result["trade_status"]
-#             merch_order_id = payment_result["merch_order_id"]
-#             total_amount = payment_result["total_amount"]
-#             transaction_id = payment_result["mm_order_id"]
-#             method_name = "APP"
-#             provider_name = "KBZ Pay"
-
-
-#             user_details = find_user_via_merchant_order_id(merch_order_id)
-#             fcm_token = user_details["fcm_token"]
-#             opportunity_id = user_details["opportunity_id"]
-#             payment_history_id = user_details["payment_history_id"]
-#             update_payment_history(payment_history_id, merch_order_id,opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
-
-#             if status.lower() == 'pay_success':
-#                 pay_status= "successful. Thank you for choosing Common Health."
-#             else:
-#                 pay_status = "not successful."
-
-#             message = messaging.Message(
-#                 token=fcm_token,
-#                 notification=messaging.Notification(
-#                     title='Payment Update',
-#                     body=f'Your payment for your order in Common Health is {pay_status}'
-#                 ),
-#                 data={
-#                     "orderId": opportunity_id,
-#                     "action": "redirect_to_orders"
-#                 }
-#             )
-
-#             try:
-#                 send_fcm_notification(message)
-#             except Exception as e:
-#                 print(f"Failed to send FCM notification: {str(e)}")
-#             return "success"
-#         except Exception as e:
-#             return jsonify({"error": str(e)}), 500
-#     else:
-#         return jsonify({"error": "Method not allowed"}), 405
+@app.route('/api/create_case', methods=['POST'])
+@jwt_required()
+def create_case():
+    try:
+        received_data = request.get_json()
+        return create_salesforce_case(received_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     
 @app.route('/api/get_payment_method/<user_id>', methods=['POST'])
 @jwt_required()
@@ -122,7 +84,7 @@ def new_payment_method(account_id):
         response = create_payment_method(account_id, data)
         return jsonify(response), 201
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/update_payment_method/<payment_id>', methods=['POST'])
 @jwt_required()
