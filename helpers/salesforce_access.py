@@ -350,7 +350,7 @@ def get_contact_related_data(contact_id):
 
         # Querying opportunities associated with the contact and their line items
         opportunity_query = sf.query_all(f"""
-            SELECT Id, Opportunity_Number__c, Name, CloseDate, Order_Duration__c
+            SELECT Id, Opportunity_Number__c, Name, CloseDate, Order_Duration__c, Amount
             FROM Opportunity
             WHERE StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won') AND Patient_Name__c = '{contact_id}'
         """)['records']
@@ -358,11 +358,6 @@ def get_contact_related_data(contact_id):
         opportunities = []
         for opportunity in opportunity_query:
             opp_id = opportunity['Id']
-            line_item_query = sf.query_all(f"""
-                SELECT Price__c
-                FROM Opportunity_Item__c
-                WHERE Opportunity__c = '{opp_id}'
-            """)['records']
 
             opportunity_info = {
                 'opportunityId': opp_id,
@@ -370,7 +365,7 @@ def get_contact_related_data(contact_id):
                 'opportunityName': opportunity['Name'],
                 'closeDate': opportunity['CloseDate'],
                 'orderDuration': opportunity.get('Order_Duration__c'),
-                'price': line_item_query[0]['Price__c'] if line_item_query else None
+                'price': opportunity.get('Amount')
             }
             opportunities.append(opportunity_info)
 
