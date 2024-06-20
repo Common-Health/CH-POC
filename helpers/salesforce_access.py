@@ -242,10 +242,10 @@ def find_user_order(user_id, stage):
     
 def find_user_prescription(patient_id, prescription_id):
     # Modify the query to conditionally include the StageName filter
-    if prescription_id == None:
+    if prescription_id is None:
         query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Patient__c = '{patient_id}'"
     else:
-        query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Patient__c = '{patient_id}' AND Prescription__c = '{prescription_id}'"
+        query = f"SELECT ID, Account__c, Instructions__c, Patient__c, Age__c, Prescribing_Practitioner__c, Prescribing_Clinic__c, Prescription_Created_Date__c, Name FROM Prescription__c WHERE Patient__c = '{patient_id}' AND ID = '{prescription_id}'"
 
     response = sf.query(query)
 
@@ -254,14 +254,47 @@ def find_user_prescription(patient_id, prescription_id):
         for prescription_details in response['records']:
             prescription_id = prescription_details.get('Id')
             prescription_account_holder = prescription_details.get('Account__c')
-            prescription_patient_name = prescription_details.get('Patient__c')
+            prescription_patient_id = prescription_details.get('Patient__c')
             prescription_age = prescription_details.get('Age__c')
-            prescription_prescribing_practitioner = prescription_details.get('Prescribing_Practitioner__c')
-            prescription_prescribing_clinic = prescription_details.get('Prescribing_Clinic__c')
+            prescription_prescribing_practitioner_id = prescription_details.get('Prescribing_Practitioner__c')
+            prescription_prescribing_clinic_id = prescription_details.get('Prescribing_Clinic__c')
             prescription_creation_date = prescription_details.get('Prescription_Created_Date__c')
             prescription_name = prescription_details.get('Name')
             prescription_instructions = prescription_details.get('Instructions__c')
 
+            if prescription_patient_id:
+                patient_query = f"SELECT Name FROM Contact WHERE ID = '{prescription_patient_id}'"
+                patient_response = sf.query(patient_query)
+                if patient_response['totalSize'] > 0:
+                    prescription_patient_name = patient_response['records'][0].get('Name')
+                else:
+                    prescription_patient_name = None
+            else:
+                prescription_patient_name = None
+
+            # Query for practitioner name
+            if prescription_prescribing_practitioner_id:
+                practitioner_query = f"SELECT Name FROM Contact WHERE ID = '{prescription_prescribing_practitioner_id}'"
+                practitioner_response = sf.query(practitioner_query)
+                if practitioner_response['totalSize'] > 0:
+                    prescription_prescribing_practitioner = practitioner_response['records'][0].get('Name')
+                else:
+                    prescription_prescribing_practitioner = None
+            else:
+                prescription_prescribing_practitioner = None
+
+            # Query for clinic name
+            if prescription_prescribing_clinic_id:
+                clinic_query = f"SELECT Name FROM Account WHERE ID = '{prescription_prescribing_clinic_id}'"
+                clinic_response = sf.query(clinic_query)
+                if (clinic_response['totalSize'] > 0):
+                    prescription_prescribing_clinic = clinic_response['records'][0].get('Name')
+                else:
+                    prescription_prescribing_clinic = None
+            else:
+                prescription_prescribing_clinic = None
+
+            # Query for prescription line items
             line_items_query = f"SELECT ID, Inventory_Name__c, Generic_Name__c, Notes__c, Status__c, Tablet__c, Prescription__c, Frequency__c, Units_per_Day__c FROM Prescription_Line_Item__c WHERE Prescription__c = '{prescription_id}'"
             line_items_response = sf.query(line_items_query)
 
@@ -288,7 +321,7 @@ def find_user_prescription(patient_id, prescription_id):
                 "prescribingClinic": prescription_prescribing_clinic,
                 "creationDate": prescription_creation_date,
                 "prescriptionNumber": prescription_name,
-                "instructions":prescription_instructions,
+                "instructions": prescription_instructions,
                 "prescriptionLineItems": line_items  # List of all items
             }
             prescription_summaries.append(prescription_summary)
@@ -296,6 +329,7 @@ def find_user_prescription(patient_id, prescription_id):
         return prescription_summaries
     else:
         return {"msg": "No Prescriptions found associated with the user"}
+
     
 def get_contact_related_data(contact_id):
     try:
