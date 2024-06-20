@@ -151,7 +151,7 @@ def find_user_order(user_id, stage):
                             "accountHolder": subscription.get('Account__r').get('Name')
                         }
                         subscription_details.append(subscription_detail)
-            opp_item_query = f"SELECT Product__c, Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
+            opp_item_query = f"SELECT Product__c, Price__c, Total_Line_Item_Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
             opp_item_response = sf.query(opp_item_query)
             prescription_details = {}
             payment_method_details = {}
@@ -164,6 +164,7 @@ def find_user_order(user_id, stage):
                         "price": item.get('Price__c'),
                         "quantity": item.get('Quantity__c'),
                         "shopifyOrderNumber": item.get('Shopify_Order_Number__c'),
+                        "totalPrice": item.get('Total_Line_Item_Price__c'),
                         "date": item.get('Date__c')
                     }
                     opportunity_items.append(opp_item)
