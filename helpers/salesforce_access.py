@@ -106,7 +106,7 @@ def find_user_order(user_id, stage):
     elif stage.lower() == "pending":
         query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
     elif stage.lower() == "past":
-        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c, (SELECT Delivery_Date__c, Delivery_Time__c, Delivery_Timestamp__c FROM Deliveries__r) FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
+        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
     else:
         raise ValueError("Invalid stage provided. Please use 'pending' or 'past'.")
 
@@ -114,6 +114,21 @@ def find_user_order(user_id, stage):
 
     if response['totalSize'] > 0:
         order_summaries = []
+        opportunity_ids = [opportunity_details.get('Id') for opportunity_details in response['records']]
+
+        # Query delivery details separately
+        if stage.lower() == "past":
+            ids_string = ', '.join(f"'{oid}'" for oid in opportunity_ids)
+            delivery_query = f"""
+            SELECT Opportunity__c, Delivery_Date__c, Delivery_Time__c, Delivery_Timestamp__c
+            FROM Delivery__c
+            WHERE Opportunity__c IN ({ids_string})
+            """
+            delivery_response = sf.query(delivery_query)
+            delivery_details_map = {delivery.get('Opportunity__c'): delivery for delivery in delivery_response['records']}
+        else:
+            delivery_details_map = {}
+
         for opportunity_details in response['records']:
             opportunity_id = opportunity_details.get('Id')
             opportunity_number = opportunity_details.get('Opportunity_Number__c')
@@ -133,18 +148,12 @@ def find_user_order(user_id, stage):
                 opportunity_rating = None
             else:
                 opportunity_rating = opportunity_details.get('Net_Promoter_Score__c')
-            
+
             # Fetch delivery details if stage is past
-            delivery_details = {}
-            if stage.lower() == "past":
-                deliveries = opportunity_details.get('Deliveries__r', {}).get('records', [])
-                if deliveries:
-                    delivery = deliveries[0]  # Assuming one delivery per opportunity
-                    delivery_details = {
-                        "deliveryDate": delivery.get('Delivery_Date__c'),
-                        "deliveryTime": delivery.get('Delivery_Time__c'),
-                        "deliveryTimestamp": delivery.get('Delivery_Timestamp__c')
-                    }
+            delivery_details = delivery_details_map.get(opportunity_id, {})
+            delivery_date = delivery_details.get('Delivery_Date__c')
+            delivery_time = delivery_details.get('Delivery_Time__c')
+            delivery_timestamp = delivery_details.get('Delivery_Timestamp__c')
 
             subscription_id = opportunity_details.get('Subscription__c')
             subscription_details = []
@@ -164,7 +173,7 @@ def find_user_order(user_id, stage):
                             "accountHolder": subscription.get('Account__r').get('Name')
                         }
                         subscription_details.append(subscription_detail)
-            
+
             opp_item_query = f"SELECT Product__c, Price__c, Total_Line_Item_Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
             opp_item_response = sf.query(opp_item_query)
             prescription_details = {}
@@ -218,7 +227,11 @@ def find_user_order(user_id, stage):
                 "currency": opportunity_currency,
                 "opportunityItems": opportunity_items,  # List of all items
                 "subscription": subscription_details,
-                "deliveryDetails": delivery_details  # Added delivery details
+                "deliveryDetails": {
+                    "deliveryDate": delivery_date,
+                    "deliveryTime": delivery_time,
+                    "deliveryTimestamp": delivery_timestamp
+                } if stage.lower() == "past" else None  # Added delivery details conditionally
             }
             order_summaries.append(order_summary)
 
