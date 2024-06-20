@@ -106,7 +106,7 @@ def find_user_order(user_id, stage):
     elif stage.lower() == "pending":
         query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Qualification', 'Quoted', 'Ordered', 'Picked Up')"
     elif stage.lower() == "past":
-        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
+        query = f"SELECT ID, Amount, Delivery_SLA_Date__c, CurrencyIsoCode, Payment_Status__c, Net_Promoter_Score__c, CloseDate, Created_Date__c, Shopify_Order_Number__c, Name, StageName, Payment_Method__r.Customer_Phone_Number__c, Payment_Method__r.CurrencyIsoCode, Payment_Method__r.Customer_Name__c, Payment_Method__r.Method_Name__c, Payment_Method__r.Provider_Name__c, Payment_Method__r.Name, Prescription__r.Name, Prescription__r.Id, Opportunity_Number__c, Patient_Name__r.Name, Subscription__c, (SELECT Delivery_Date__c, Delivery_Time__c, Delivery_Timestamp__c FROM Deliveries__r) FROM Opportunity WHERE AccountId = '{user_id}' AND StageName IN ('Delivered', 'Delivered-Paid', 'Closed Won')"
     else:
         raise ValueError("Invalid stage provided. Please use 'pending' or 'past'.")
 
@@ -129,10 +129,23 @@ def find_user_order(user_id, stage):
             opportunity_delivery_date = opportunity_details.get('Delivery_SLA_Date__c')
             opportunity_payment_status = opportunity_details.get('Payment_Status__c')
             opportunity_currency = opportunity_details.get('CurrencyIsoCode')
-            if stage == 'Pending':
+            if stage == 'pending':
                 opportunity_rating = None
             else:
                 opportunity_rating = opportunity_details.get('Net_Promoter_Score__c')
+            
+            # Fetch delivery details if stage is past
+            delivery_details = {}
+            if stage.lower() == "past":
+                deliveries = opportunity_details.get('Deliveries__r', {}).get('records', [])
+                if deliveries:
+                    delivery = deliveries[0]  # Assuming one delivery per opportunity
+                    delivery_details = {
+                        "deliveryDate": delivery.get('Delivery_Date__c'),
+                        "deliveryTime": delivery.get('Delivery_Time__c'),
+                        "deliveryTimestamp": delivery.get('Delivery_Timestamp__c')
+                    }
+
             subscription_id = opportunity_details.get('Subscription__c')
             subscription_details = []
             if subscription_id:
@@ -151,6 +164,7 @@ def find_user_order(user_id, stage):
                             "accountHolder": subscription.get('Account__r').get('Name')
                         }
                         subscription_details.append(subscription_detail)
+            
             opp_item_query = f"SELECT Product__c, Price__c, Total_Line_Item_Price__c, Quantity__c, Shopify_Order_Number__c, Date__c FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
             opp_item_response = sf.query(opp_item_query)
             prescription_details = {}
@@ -174,20 +188,20 @@ def find_user_order(user_id, stage):
 
             if payment_method:
                 payment_method_details = {
-                "customerPhoneNumber": payment_method.get('Customer_Phone_Number__c'),
-                "currencyIsoCode": payment_method.get('CurrencyIsoCode'),
-                "customerName": payment_method.get('Customer_Name__c'),
-                "methodName": payment_method.get('Method_Name__c'),
-                "providerName": payment_method.get('Provider_Name__c'),
-                "name": payment_method.get('Name')
+                    "customerPhoneNumber": payment_method.get('Customer_Phone_Number__c'),
+                    "currencyIsoCode": payment_method.get('CurrencyIsoCode'),
+                    "customerName": payment_method.get('Customer_Name__c'),
+                    "methodName": payment_method.get('Method_Name__c'),
+                    "providerName": payment_method.get('Provider_Name__c'),
+                    "name": payment_method.get('Name')
                 }
             if prescription:
                 prescription_details = {
-                "name": prescription.get('Name', 'N/A'),
-                "prescriptionId": prescription.get('Id', 'N/A')
+                    "name": prescription.get('Name', 'N/A'),
+                    "prescriptionId": prescription.get('Id', 'N/A')
                 }
             order_summary = {
-                "opportunityId":opportunity_id,
+                "opportunityId": opportunity_id,
                 "opportunityName": opportunity_name,
                 "opportunityNumber": opportunity_number,
                 "patientName": opportunity_patient_name,
@@ -203,13 +217,15 @@ def find_user_order(user_id, stage):
                 "paymentStatus": opportunity_payment_status,
                 "currency": opportunity_currency,
                 "opportunityItems": opportunity_items,  # List of all items
-                "subscription":subscription_details
+                "subscription": subscription_details,
+                "deliveryDetails": delivery_details  # Added delivery details
             }
             order_summaries.append(order_summary)
 
         return order_summaries
     else:
         return {"msg": "No Opportunities found associated with the user"}
+
     
 def find_user_prescription(patient_id, prescription_id):
     # Modify the query to conditionally include the StageName filter
