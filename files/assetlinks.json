@@ -1,9 +1,14 @@
-[{
-    "relation": ["delegate_permission/common.handle_all_urls"],
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.commonhealth.mm",
-      "sha256_cert_fingerprints":
-      ["C2:77:A9:E6:AF:B8:93:16:B1:00:BE:C8:60:48:77:81:91:92:F1:A2:24:E0:68:84:2F:7B:5B:F7:83:C1:1C:E8"]
+      "package_name": "com.commonhealthgroup.app",
+      "sha256_cert_fingerprints": [
+        "D0:0A:A8:2D:DB:79:DD:D0:E0:EE:22:93:98:FE:21:DD:9A:92:94:D0:1F:8B:6D:F4:C3:D1:E0:9D:82:EE:04:23"
+      ]
     }
-  }]
+  }
+]
