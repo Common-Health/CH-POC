@@ -4,22 +4,22 @@
     "details": [
       {
         "appIDs": [
-          "BGZ94C93BF.com.commonhealth.mm"
-        ],
-        "paths": [
-          "*"
+          "BGZ94C93BF.com.commonhealthgroup.app"
         ],
         "components": [
           {
             "/": "/*"
           }
+        ],
+        "paths": [
+          "*"
         ]
       }
     ]
   },
   "webcredentials": {
     "apps": [
-      "BGZ94C93BF.com.commonhealth.mm"
+      "BGZ94C93BF.com.commonhealthgroup.app"
     ]
   }
 }
