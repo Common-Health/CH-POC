@@ -566,7 +566,7 @@ def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, fi
     new_account = {
         'Name': user_name,
         'Phone': user_phone,
-        'RecordTypeId': '0124x000000ZGecAAG',
+        'RecordTypeId': '0014x000019deNEAAY',
         'CurrencyIsoCode': currency,
         'Country__c':user_country,
         'FCM_Token__c': fcm_token,
@@ -578,7 +578,7 @@ def create_new_user(user_name, user_phone, fcm_token, user_country, user_pin, fi
     new_contact = {
         'LastName': user_name,
         'AccountId': response.get('id'),
-        'RecordTypeId': '0124x000000ZGiKAAW',
+        'RecordTypeId': '0034x000017J2qVAAS',
         'Phone': user_phone,
         'CurrencyIsoCode': currency
     }
