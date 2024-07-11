@@ -223,17 +223,21 @@ def update_rating(opportunity_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-@app.route('/api/update_account/<user_id>',methods=['POST'])
+@app.route('/api/update_account/<user_id>', methods=['POST'])
 @jwt_required()
 def update_account(user_id):
     try:
         data = request.json
 
         update_data = {}
-        update_data['Name'] = data.get('name')
-        update_data['CH_Email__c'] = data.get('email')
-        update_data['ShippingStreet'] = data.get('shippingStreet')
-        update_data['Country__c'] = data.get('country')
+        if data.get('name') is not None:
+            update_data['Name'] = data.get('name')
+        if data.get('email') is not None:
+            update_data['CH_Email__c'] = data.get('email')
+        if data.get('shippingStreet') is not None:
+            update_data['ShippingStreet'] = data.get('shippingStreet')
+        if data.get('country') is not None:
+            update_data['Country__c'] = data.get('country')
         if 'geolocation' in data and data['geolocation']:
             try:
                 lat, lng = data['geolocation'].split(',')
@@ -241,9 +245,10 @@ def update_account(user_id):
                 update_data['Geolocation__Longitude__s'] = float(lng)
             except ValueError:
                 return {'error': 'Invalid geolocation format. Please use "lat,lng".'}
-        update_data['Display_Photo_URL__c'] = data.get('photo_url')
+        if data.get('photo_url') is not None:
+            update_data['Display_Photo_URL__c'] = data.get('photo_url')
 
-        update_user_response = update_user(update_data,user_id)
+        update_user_response = update_user(update_data, user_id)
         return update_user_response
     except Exception as e:
         return jsonify({"error": str(e)}), 500
