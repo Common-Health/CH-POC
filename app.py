@@ -233,6 +233,7 @@ def update_account(user_id):
         update_data['Name'] = data.get('name')
         update_data['CH_Email__c'] = data.get('email')
         update_data['ShippingStreet'] = data.get('shippingStreet')
+        update_data['Country__c'] = data.get('country')
         if 'geolocation' in data and data['geolocation']:
             try:
                 lat, lng = data['geolocation'].split(',')
