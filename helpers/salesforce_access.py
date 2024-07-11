@@ -613,10 +613,13 @@ def update_user(update_data, user_id):
         }
         return new_user_response
     except SalesforceResourceNotFound:
+        logging.error(f'User not found in Salesforce with ID: {user_id}')
         return jsonify({'error': 'User not found in Salesforce with ID: {}'.format(user_id)}), 404
     except SalesforceMalformedRequest as e:
+        logging.error(f'Invalid data provided; Salesforce could not process the request. Details: {e}')
         return jsonify({'error': 'Invalid data provided; Salesforce could not process the request. Details: {}'.format(e)}),400
     except Exception as e:
+        logging.error(f'An unexpected error occurred: {e}')
         return jsonify({'error': 'An unexpected error occurred: {}'.format(e)}),500
 
 def update_user_pin(user_id, pin):
